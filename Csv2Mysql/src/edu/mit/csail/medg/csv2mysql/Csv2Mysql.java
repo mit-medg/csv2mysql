@@ -6,6 +6,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,11 +37,9 @@ public class Csv2Mysql {
 	static char commaC = CSVParser.DEFAULT_SEPARATOR;
 	static char quoteC = CSVParser.DEFAULT_QUOTE_CHARACTER;
 	static char escapeC = CSVParser.DEFAULT_ESCAPE_CHARACTER;
-//	static String comma = ",";
-//	static String quote = "\"";
-//	static String escape = "\\";
 	static boolean namesOnLine1 = true;
 	static boolean utf = false;
+	static boolean keys = false;
 	static String outFileName = "mysql_load.sql";
 	static ArrayList<String> files = new ArrayList<String>();
 	static FileWriter fw = null;
@@ -75,6 +74,8 @@ public class Csv2Mysql {
 			}
 			else if (arg.equals("-u")) 
 				utf = true;
+			else if (arg.equals("-k"))
+				keys = true;
 			else files.add(arg);
 		}
 		if (files.size()==0) {
@@ -140,6 +141,17 @@ public class Csv2Mysql {
 		 * Values are 0 = unknown, 1 = possible, -1 = impossible (some value cannot be that type)
 		 * We testing a new value unless the column's interpretation is already impossible. If it matches, we set 1,
 		 * but if not, -1.
+		 * 
+		 * If unique keys are to be created, we keep track of whether all the values in a column are unique.
+		 * In MySQL, multiple NULL values may appear in a column that is the basis of a unique key, but
+		 * this is said not to be the case in some SQL implementations, such as MS SQL Server. It is, however, the
+		 * standard.  For each column, we maintain a HashSet of all the non-NULL values, but shortcut the process as
+		 * soon as we find a duplicate value.  If all values are unique, we do add a UNIQUE KEY constraint in the
+		 * generated table definition.
+		 * The problem with this method is that at the time we check for uniqueness, we do not yet know the eventual
+		 * data type of the column, so the uniqueness is in terms of string representation.  However, if the column
+		 * turns out to be INT, say, then multiple distinct strings may represent the same value, e.g., "01" and "1".
+		 * Therefore, we should do a further integrity check after the column data type has been determined. 
 		 */
 		int[] canBeInt = null, canBeDouble = null, canBeDate = null, canBeTime = null, 
 				canBeDateTime = null, canBeOracleDateTime = null, canBeOracleDate = null;
@@ -147,6 +159,7 @@ public class Csv2Mysql {
 		BigInteger[] minInts = null, maxInts = null;
 		long[] colLengths = null;
 		String[] cols = null;
+		ArrayList<HashSet<String>> vals = null;
 
 		int lineNo = 0;
 		/* We keep track for each column of the following:
@@ -172,6 +185,7 @@ public class Csv2Mysql {
 				minInts = new BigInteger[nCols];
 				maxInts = new BigInteger[nCols];
 				colLengths = new long[nCols];
+				vals = new ArrayList<HashSet<String>>(nCols);
 				for (int i = 0; i < nCols; i++) {
 					cols[i] = "V" + i;
 					canBeInt[i] = 0;
@@ -185,6 +199,7 @@ public class Csv2Mysql {
 					minInts[i] = new BigInteger("99999999999999999999999999999999999999999999999999999999999999999");
 					maxInts[i] = new BigInteger("-99999999999999999999999999999999999999999999999999999999999999999");
 					colLengths[i] = 0L;
+					if (keys) vals.set(i, new HashSet<String>());
 				}
 			}
 			else if (nCols != line.length) {
@@ -196,6 +211,11 @@ public class Csv2Mysql {
 					String v = line[c].trim();
 					if (v.equals("")) nullable[c] = true;
 					else {
+						if (keys) {
+							HashSet<String> s = vals.get(c);
+							if (s != null && !s.contains(v)) s.add(v);
+							else vals.set(c, null);
+						}
 						if (canBeDate[c] >= 0) canBeDate[c] = isDate(v) ? 1 : -1;
 						if (canBeOracleDate[c] >= 0) canBeOracleDate[c] = isOracleDate(v) ? 1 : -1;
 						if (canBeTime[c] >= 0) canBeTime[c] = isTime(v) ? 1 : -1;
@@ -258,6 +278,7 @@ public class Csv2Mysql {
 			if (!nullable[c]) sb.append(" NOT NULL");
 			if (c < nCols-1) sb.append(",\n");
 		}
+		// Here is where to add UNIQUE KEY!
 		sb.append(")");
 		if (utf) sb.append("\n  CHARACTER SET = UTF8");
 		sb.append(";\n\n");
@@ -333,9 +354,10 @@ public class Csv2Mysql {
 		{"This program reads .csv files specified on the command line and creates a .sql",
 		 "file that defines an appropriately structured table for each file and includes",
 		 "a LOAD DATA statement that will load the file contents into that table.  Only one",
-		 "output file is created for all the specified files. No primary keys or indexes are",
-		 "generated and no referential integrity constraints are imposed because these cannot",
-		 "be guessed from the contents of the files.",
+		 "output file is created for all the specified files. By default, no primary keys or",
+		 "indexes are generated and no referential integrity constraints are imposed because",
+		 "these cannot be guessed from the contents of the files. The -k option will try to",
+		 "create unique keys if applicable.",
 		 "",
 		 "The following options may be given on the command line:",
 		 "  -n No column names are given in the first line of the csv; use generated names",
@@ -343,7 +365,8 @@ public class Csv2Mysql {
 		 "  -c comma, given as next argument",
 		 "  -q quote, given as next argument",
 		 "  -e escape, given as next argument",
-		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters"};
+		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
+		 "  -k generate UNIQUE KEY constraints for columns with unique values"};
 	
 	/*
 	 * To deal with MySql BIGINT, we have to accept numbers that are larger than Java's int, hence the
