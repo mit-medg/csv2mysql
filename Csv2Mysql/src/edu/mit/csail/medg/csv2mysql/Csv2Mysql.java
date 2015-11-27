@@ -16,12 +16,14 @@ import com.opencsv.CSVReader;
 /** Program to construct MySql table definitions and data import statements
  * from csv files.
  * The command line can specify:
- *  -n No column names are given in the first line of the csv; use generated names.
+ *  -g No column names are given in the first line of the csv; use generated names.
  *  -o File name to hold output; default is mysql_load.sql
  *  -c comma, given as next argument
  *  -q quote, given as next argument
  *  -e escape, given as next argument
  *  -u text encoding is UTF8
+ *  -k try to create unique keys
+ *  -b empty column is NOT treated as NULL (normally \N), but as value
  *  
  * The program can be invoked in Unix-style systems (including Mac OS X, Linux) via a command such as
  * java -jar csv2mysql.jar *.csv
@@ -40,6 +42,7 @@ public class Csv2Mysql {
 	static boolean namesOnLine1 = true;
 	static boolean utf = false;
 	static boolean keys = false;
+	static boolean blanksAreNull = true;
 	static String outFileName = "mysql_load.sql";
 	static ArrayList<String> files = new ArrayList<String>();
 	static FileWriter fw = null;
@@ -50,7 +53,7 @@ public class Csv2Mysql {
 
 		for (int a = 0; a < args.length; a++) {
 			String arg = args[a];
-			if (arg.equals("-n")) namesOnLine1 = false;
+			if (arg.equals("-g")) namesOnLine1 = false;
 			else if (arg.equals("-o") && a+1 < args.length) {
 				a++;
 				outFileName = args[a];
@@ -76,6 +79,8 @@ public class Csv2Mysql {
 				utf = true;
 			else if (arg.equals("-k"))
 				keys = true;
+			else if (arg.equals("-b"))
+				blanksAreNull = false;
 			else files.add(arg);
 		}
 		if (files.size()==0) {
@@ -119,7 +124,6 @@ public class Csv2Mysql {
 			System.err.println("Could not open input file " + inFile);
 //			e.printStackTrace();
 		}
-//		ArrayList<String> cols = new ArrayList<String>();
 		int nCols = -1;
 		String[] line;
 		boolean treatLineAsNames = namesOnLine1; // Only applies to first line
@@ -199,7 +203,7 @@ public class Csv2Mysql {
 					minInts[i] = new BigInteger("99999999999999999999999999999999999999999999999999999999999999999");
 					maxInts[i] = new BigInteger("-99999999999999999999999999999999999999999999999999999999999999999");
 					colLengths[i] = 0L;
-					if (keys) vals.set(i, new HashSet<String>());
+					if (keys) vals.add(new HashSet<String>());
 				}
 			}
 			else if (nCols != line.length) {
@@ -209,7 +213,7 @@ public class Csv2Mysql {
 			if (!treatLineAsNames || !goodNames(line)) {
 				for (int c = 0; c < line.length; c++) {
 					String v = line[c].trim();
-					if (v.equals("")) nullable[c] = true;
+					if (v.equals("\\N") || (blanksAreNull && v.equals(""))) nullable[c] = true;
 					else {
 						if (keys) {
 							HashSet<String> s = vals.get(c);
@@ -250,12 +254,23 @@ public class Csv2Mysql {
 		int dot = tableName.lastIndexOf(".");
 		if (dot > 1) tableName = tableName.substring(0, dot);
 		
+		// Each line ends with a comma, an optional comment, and newline, except the first.
+		// We actually output these at the start of a new line, to avoid an extra comma at end.
 		StringBuilder sb = new StringBuilder();
 		sb.append("DROP TABLE IF EXISTS " + tableName + ";\n");
-		sb.append("CREATE TABLE " + tableName + " (\n");
+		String sep = " (";
+		String comment = "";
+		sb.append("CREATE TABLE " + tableName);
 		for (int c = 0; c < nCols; c++) {
+			sb.append(sep);
+			sb.append(comment);
+			sb.append("\n");
+			sep = ",";
+			comment = "";
 			sb.append("   " + cols[c]);
 			if (canBeInt[c] > 0) {
+				if (keys && vals.get(c) != null && !areUniqueIntegers(vals.get(c)))
+					vals.set(c, null);
 				BigInteger[] numberTops = numberMax;
 				if (minInts[c].compareTo(bigZero) >= 0) numberTops = numberMaxU;
 				for (int i = 0; i < numberTops.length; i++) {
@@ -266,7 +281,11 @@ public class Csv2Mysql {
 					}
 				}
 			}
-			else if (canBeDouble[c] > 0) sb.append(" DOUBLE");
+			else if (canBeDouble[c] > 0) {
+				if (keys && vals.get(c) != null && !areUniqueDoubles(vals.get(c)))
+					vals.set(c, null);
+				sb.append(" DOUBLE");
+			}
 			else if (canBeDateTime[c] > 0 || canBeOracleDateTime[c] > 0) sb.append(" DATETIME");
 			else if (canBeDate[c] > 0 || canBeOracleDate[c] > 0) sb.append(" DATE");
 			else if (canBeTime[c] > 0) sb.append(" TIME");
@@ -274,12 +293,27 @@ public class Csv2Mysql {
 				String textType = whichText(colLengths[c], utf);
 				if (textType==null) textType = "LONGTEXT";	// should never happen
 				sb.append(" " + textType);
+				comment =  "\t-- max=" + colLengths[c];
 			}
 			if (!nullable[c]) sb.append(" NOT NULL");
-			if (c < nCols-1) sb.append(",\n");
 		}
 		// Here is where to add UNIQUE KEY!
-		sb.append(")");
+		if (keys) {
+			for (int c = 0; c < nCols; c++) {
+				if (vals.get(c) != null) {
+					sb.append(sep);
+					sb.append(comment);
+					sb.append("\n");
+					comment = "";
+					sb.append("  UNIQUE KEY " + tableName + "_" + cols[c] + " (" + cols[c] + ")");
+				}					
+			}
+		}
+		if (comment != "") {
+			sb.append(comment);
+			sb.append("\n  )");
+		}
+		else sb.append(")");
 		if (utf) sb.append("\n  CHARACTER SET = UTF8");
 		sb.append(";\n\n");
 		sb.append("LOAD DATA LOCAL INFILE \'" + inf.getName() + "\' INTO TABLE " + tableName + "\n");
@@ -287,7 +321,7 @@ public class Csv2Mysql {
 		sb.append(" OPTIONALLY ENCLOSED BY \'" + quoteIfNeeded(quoteC) + "\' \n");
 		sb.append("   LINES TERMINATED BY \'\\n\'\n");
 		if (treatedLineAsNames) sb.append("   IGNORE 1 LINES\n");
-		String sep = "   (";
+		sep = "   (";
 		for (int c = 0; c < nCols; c++) {
 			sb.append(sep + "@" + cols[c]);
 			sep = ",";
@@ -360,13 +394,14 @@ public class Csv2Mysql {
 		 "create unique keys if applicable.",
 		 "",
 		 "The following options may be given on the command line:",
-		 "  -n No column names are given in the first line of the csv; use generated names",
+		 "  -g No column names are given in the first line of the csv; use generated names",
 		 "  -o File name to hold output; default is mysql_load.sql",
 		 "  -c comma, given as next argument",
 		 "  -q quote, given as next argument",
 		 "  -e escape, given as next argument",
 		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
-		 "  -k generate UNIQUE KEY constraints for columns with unique values"};
+		 "  -k generate UNIQUE KEY constraints for columns with unique values",
+		 "  -b empty column is NOT treated as NULL (normally \\N), but as value"};
 	
 	/*
 	 * To deal with MySql BIGINT, we have to accept numbers that are larger than Java's int, hence the
@@ -535,6 +570,26 @@ public class Csv2Mysql {
 					mo >= 0 && mo <= 12 & da >= 0 && da <= 31) return true;
 		}
 		return false;
+	}
+	
+	static boolean areUniqueIntegers(HashSet<String> set) {
+		HashSet<BigInteger> ints = new HashSet<BigInteger>();
+		for (String s: set) {
+			BigInteger i = new BigInteger(s);
+			if (ints.contains(i)) return false;
+			ints.add(i);
+		}
+		return true;
+	}
+	
+	static boolean areUniqueDoubles(HashSet<String> set) {
+		HashSet<Double> doubles = new HashSet<Double>();
+		for (String s: set) {
+			Double d = new Double(s);
+			if (doubles.contains(d)) return false;
+			doubles.add(d);
+		}
+		return true;
 	}
 	
 	static final String[] textTypes = {"VARCHAR(255)", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"};
