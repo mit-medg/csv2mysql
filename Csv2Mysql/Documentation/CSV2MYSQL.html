@@ -219,6 +219,8 @@
       </tbody>
     </table>
     <br>
+    Actually, this was changed so that floating point values are always
+    treated as <tt>DOUBLE</tt>.<br>
     <h3>Date, Time and DateTime</h3>
     <p>MySQL provides Date, Time and DateTime data types, which we
       support.&nbsp; There is also a TimeStamp data type, but its range
@@ -293,8 +295,8 @@
       as a comment in the table definition.<br>
     </p>
     <h3>Unique Keys</h3>
-    <p>If requested, we test to see whether every value (except NULL) in
-      a column is distinct.&nbsp; If so, we create a UNIQUE KEY
+    <p>If requested, we test to see whether every value (except <tt>NULL</tt>)
+      in a column is distinct.&nbsp; If so, we create a <tt>UNIQUE KEY</tt>
       constraint for that column.&nbsp; If a column has all integer or
       floating-point values, we test for distinctness by actually
       converting each value into the corresponding type. This is because
@@ -309,10 +311,10 @@
       as an integer, this program will do so and thus lose these
       distinctions.<br>
     </p>
-    <p>The program also cannot determine which among the UNIQUE KEYs
-      should be a table's PRIMARY KEY, or whether compound keys need to
-      be defined to reflect the semantics and/or access patterns to the
-      data.<br>
+    <p>The program also cannot determine which among the <tt>UNIQUE KEY</tt>s
+      should be a table's <tt>PRIMARY KEY</tt>, or whether compound
+      keys need to be defined to reflect the semantics and/or access
+      patterns to the data.<br>
       <br>
     </p>
     <p> </p>

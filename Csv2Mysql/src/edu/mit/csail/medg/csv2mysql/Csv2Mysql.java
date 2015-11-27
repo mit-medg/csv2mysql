@@ -217,8 +217,13 @@ public class Csv2Mysql {
 					else {
 						if (keys) {
 							HashSet<String> s = vals.get(c);
-							if (s != null && !s.contains(v)) s.add(v);
-							else vals.set(c, null);
+							if (s != null)
+								if (!s.contains(v)) 
+									s.add(v);
+								else {
+									vals.set(c, null);
+									System.out.println("Col " + c + " is not unique.");
+								}
 						}
 						if (canBeDate[c] >= 0) canBeDate[c] = isDate(v) ? 1 : -1;
 						if (canBeOracleDate[c] >= 0) canBeOracleDate[c] = isOracleDate(v) ? 1 : -1;
@@ -269,8 +274,10 @@ public class Csv2Mysql {
 			comment = "";
 			sb.append("   " + cols[c]);
 			if (canBeInt[c] > 0) {
-				if (keys && vals.get(c) != null && !areUniqueIntegers(vals.get(c)))
+				if (keys && vals.get(c) != null && !areUniqueIntegers(vals.get(c))) {
 					vals.set(c, null);
+					System.out.println("Col " + c + " has unique strings but not integers.");
+				}
 				BigInteger[] numberTops = numberMax;
 				if (minInts[c].compareTo(bigZero) >= 0) numberTops = numberMaxU;
 				for (int i = 0; i < numberTops.length; i++) {
@@ -282,8 +289,10 @@ public class Csv2Mysql {
 				}
 			}
 			else if (canBeDouble[c] > 0) {
-				if (keys && vals.get(c) != null && !areUniqueDoubles(vals.get(c)))
+				if (keys && vals.get(c) != null && !areUniqueDoubles(vals.get(c))) {
 					vals.set(c, null);
+					System.out.println("Col " + c + " has unique strings but not floats.");
+				}
 				sb.append(" DOUBLE");
 			}
 			else if (canBeDateTime[c] > 0 || canBeOracleDateTime[c] > 0) sb.append(" DATETIME");
@@ -576,7 +585,8 @@ public class Csv2Mysql {
 		HashSet<BigInteger> ints = new HashSet<BigInteger>();
 		for (String s: set) {
 			BigInteger i = new BigInteger(s);
-			if (ints.contains(i)) return false;
+			if (ints.contains(i)) 
+				return false;
 			ints.add(i);
 		}
 		return true;
@@ -586,7 +596,8 @@ public class Csv2Mysql {
 		HashSet<Double> doubles = new HashSet<Double>();
 		for (String s: set) {
 			Double d = new Double(s);
-			if (doubles.contains(d)) return false;
+			if (doubles.contains(d)) 
+				return false;
 			doubles.add(d);
 		}
 		return true;
