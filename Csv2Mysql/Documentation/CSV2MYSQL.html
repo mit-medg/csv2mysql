@@ -22,10 +22,18 @@
       heuristics, it requires little or no guidance in determining the
       appropriate column data types, though there are options specifying
       whether the input files contain header lines, whether blank
-      columns are to be treated as NULL, whether the text encoding is <tt>UTF8</tt>,
-      and whether <tt>UNIQUE KEY</tt> constraints are to be sought. It
-      is also possible to specify the format of the <tt>.csv</tt> file
-      by giving the comma, quote and escape characters.</p>
+      columns are to be treated as <tt>NULL</tt>, whether the text
+      encoding is <tt>UTF8</tt>, and whether <tt>UNIQUE KEY</tt>
+      constraints are to be sought. It is also possible to specify the
+      format of the <tt>.csv</tt> file by giving the comma, quote and
+      escape characters.<br>
+    </p>
+    <p>This program uses the <b>opencsv</b> package, documented at <a
+        href="http://opencsv.sourceforge.net">http://opencsv.sourceforge.net</a>.&nbsp;
+
+
+      Its code is included in the program.<br>
+    </p>
     <h2>Using the Program</h2>
     <p>Csv2mysql is implemented in Java, built in Eclipse.&nbsp; Eclipse
       can create a runnable <tt>.jar</tt> file, which can then be
@@ -37,58 +45,70 @@
     <table border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top" align="center">-c<br>
-          </td>
+          <td valign="top" align="center"><tt>-c</tt><tt><br>
+            </tt> </td>
           <td valign="top">Next argument is the <i>comma</i> character
             [default <tt>"</tt>]<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">-q<br>
-          </td>
+          <td valign="top"><tt>-q</tt><tt><br>
+            </tt> </td>
           <td valign="top">Next argument is the <i>quote</i> character
             [default <tt>'</tt>]<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">-e<br>
-          </td>
+          <td valign="top"><tt>-e</tt><tt><br>
+            </tt> </td>
           <td valign="top">Next argument is the <i>escape</i> character
             [default <tt>\</tt>]<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">-o<br>
-          </td>
+          <td valign="top"><tt>-o</tt><tt><br>
+            </tt> </td>
           <td valign="top">Next argument is the output file [default <tt>mysql_load.sql</tt>]<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">-g<br>
-          </td>
+          <td valign="top"><tt>-g</tt><tt><br>
+            </tt> </td>
           <td valign="top">First line of input files does <i>not</i>
             contain column names; use generated ones<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">-b<br>
-          </td>
+          <td valign="top"><tt>-b</tt><tt><br>
+            </tt> </td>
           <td valign="top">Empty columns are <i>not</i> treated as <tt>NULL</tt>
             values, but as themselves; <tt>NULL</tt><tt>s</tt> in MySQL
             are normally <tt>\N</tt> or <tt>"\N"</tt></td>
         </tr>
         <tr>
-          <td valign="top">-u<br>
-          </td>
+          <td valign="top"><tt>-u</tt><tt><br>
+            </tt> </td>
           <td valign="top">Text encoding is <tt>UTF8</tt><br>
           </td>
         </tr>
         <tr>
-          <td valign="top">-k<br>
-          </td>
+          <td valign="top"><tt>-k</tt><tt><br>
+            </tt> </td>
           <td valign="top">For each column, check if all the data values
             are distinct; create <tt>UNIQUE KEY</tt> constraints for
             those that are; this is slow for very large data sets<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top"><tt>-p</tt><tt><br>
+            </tt></td>
+          <td valign="top">Report progress during scan of the
+            data.&nbsp; If multiple input files are specified, the
+            program reports processing of each one, and prints a "." for
+            every 100,000 lines of the input file that are read.&nbsp;
+            If <tt>-k</tt> is also given, it reports each time it has
+            determined that a certain column of data is <i>not</i>
+            unique.<br>
           </td>
         </tr>
       </tbody>
@@ -219,8 +239,12 @@
       </tbody>
     </table>
     <br>
-    Actually, this was changed so that floating point values are always
-    treated as <tt>DOUBLE</tt>.<br>
+    Note that an integer can also appear in a floating-point field, but
+    will be treated as floating-point if not all values in that field
+    are integers.&nbsp; If all the values in a field fit within a <tt>FLOAT</tt>,
+    that type will be selected; otherwise, <tt>DOUBLE</tt>.&nbsp; In
+    principle, we could also support larger <tt>DECIMAL</tt> fields,
+    but do not do so.<br>
     <h3>Date, Time and DateTime</h3>
     <p>MySQL provides Date, Time and DateTime data types, which we
       support.&nbsp; There is also a TimeStamp data type, but its range
@@ -251,12 +275,12 @@
     <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top"><tt>MySQL Type</tt><tt><br>
-            </tt> </td>
-          <td valign="top"><tt>Maximum Length</tt><tt><br>
-            </tt> </td>
-          <td valign="top"><tt>Maximum Length if UTF8</tt><tt><br>
-            </tt> </td>
+          <th valign="top">MySQL Type<tt><br>
+            </tt></th>
+          <th valign="top">Maximum Length<tt><br>
+            </tt></th>
+          <th valign="top">Maximum Length if UTF8<tt><br>
+            </tt></th>
         </tr>
         <tr>
           <td valign="top"><tt>VARCHAR(255)</tt><tt><br>
@@ -314,8 +338,30 @@
     <p>The program also cannot determine which among the <tt>UNIQUE KEY</tt>s
       should be a table's <tt>PRIMARY KEY</tt>, or whether compound
       keys need to be defined to reflect the semantics and/or access
-      patterns to the data.<br>
-      <br>
+      patterns to the data.&nbsp; It is also unable to identify <tt>FOREIGN
+
+
+        KEY</tt> constraints.<br>
+    </p>
+    <p>Using the -k option asks the program to retain all values in each
+      column so that it can check if those values are unique.&nbsp;
+      Although it stops doing so for any column as soon as the first
+      duplicate is found, the memory demands for a very large table with
+      one or more unique columns can be huge.&nbsp; Therefore, in such
+      cases it is necessary to start the Java Virtual Machine with
+      non-default memory parameters that can accommodate the large hash
+      tables that hold these values. Obviously, this must be run on a
+      system with enough memory.&nbsp; For example, on one very large
+      table containing about 250M rows, the following worked (though it
+      may have provided more memory than needed):<br>
+    </p>
+    <pre>java -Xms5128m -Xmx10512m -jar ~/bin/csv2mysql.jar -k -u test.csv</pre>
+    <p>Even with extra memory, performance on very large data sets
+      becomes abysmal.&nbsp; Thus, rather than using the <tt>-k</tt>
+      option, it may be more sensible to run without it, load the data
+      into the database system, and then check to see whether all values
+      are distinct using its facilities.&nbsp; If so, <tt>ALTER TABLE</tt>
+      can create the <tt>UNIQUE KEY</tt> constraints.<br>
     </p>
     <p> </p>
   </body>

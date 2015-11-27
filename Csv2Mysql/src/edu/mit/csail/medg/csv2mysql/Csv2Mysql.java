@@ -24,6 +24,7 @@ import com.opencsv.CSVReader;
  *  -u text encoding is UTF8
  *  -k try to create unique keys
  *  -b empty column is NOT treated as NULL (normally \N), but as value
+ *  -p print progress reports as the program runs
  *  
  * The program can be invoked in Unix-style systems (including Mac OS X, Linux) via a command such as
  * java -jar csv2mysql.jar *.csv
@@ -43,13 +44,15 @@ public class Csv2Mysql {
 	static boolean utf = false;
 	static boolean keys = false;
 	static boolean blanksAreNull = true;
+	static boolean progress = false;
+	static final int reportEvery = 100000;
 	static String outFileName = "mysql_load.sql";
 	static ArrayList<String> files = new ArrayList<String>();
 	static FileWriter fw = null;
 
 	public static void main(String[] args) {
+		
 		boolean printedHelp = false;
-//		System.out.println("Starting");
 
 		for (int a = 0; a < args.length; a++) {
 			String arg = args[a];
@@ -81,6 +84,8 @@ public class Csv2Mysql {
 				keys = true;
 			else if (arg.equals("-b"))
 				blanksAreNull = false;
+			else if (arg.equals("-p"))
+				progress = true;
 			else files.add(arg);
 		}
 		if (files.size()==0) {
@@ -109,12 +114,13 @@ public class Csv2Mysql {
 				e.printStackTrace();
 				System.exit(2);
 			}
+			if (progress) System.out.println("Completed " + files.size() + " files.");
 		}
 	}
 
 	private static void processFile(String inFile) throws IOException {
 		
-		System.out.println("Processing " + inFile);
+		if (progress) System.out.println("Processing " + inFile);
 		CSVReader r = null;
 		File inf = new File(inFile);
 		try {
@@ -157,13 +163,16 @@ public class Csv2Mysql {
 		 * turns out to be INT, say, then multiple distinct strings may represent the same value, e.g., "01" and "1".
 		 * Therefore, we should do a further integrity check after the column data type has been determined. 
 		 */
-		int[] canBeInt = null, canBeDouble = null, canBeDate = null, canBeTime = null, 
+		int[] canBeInt = null, canBeFloat = null, canBeDouble = null, canBeDate = null, canBeTime = null, 
 				canBeDateTime = null, canBeOracleDateTime = null, canBeOracleDate = null;
 		boolean[] nullable = null;
 		BigInteger[] minInts = null, maxInts = null;
 		long[] colLengths = null;
 		String[] cols = null;
 		ArrayList<HashSet<String>> vals = null;
+		int printCol = 0;
+		BigInteger iv = null;
+		boolean triedBigInt = false;
 
 		int lineNo = 0;
 		/* We keep track for each column of the following:
@@ -174,11 +183,16 @@ public class Csv2Mysql {
 		 */
 		while ((line = r.readNext()) != null) {
 			lineNo++;
+			if (progress && (lineNo % reportEvery) == 0) {
+				System.out.print(".");
+				printCol++;
+			}
 			if (nCols < 0) {
 				nCols = line.length;
 				// Initialize all the tracking vars now that we know how many columns
 				cols = new String[nCols];
 				canBeInt = new int[nCols];
+				canBeFloat = new int[nCols];
 				canBeDouble = new int[nCols];
 				canBeDate = new int[nCols];
 				canBeTime = new int[nCols];
@@ -222,16 +236,24 @@ public class Csv2Mysql {
 									s.add(v);
 								else {
 									vals.set(c, null);
-									System.out.println("Col " + c + " is not unique.");
+									if (progress) {
+										if (printCol > 0) {
+											System.out.println("");
+											printCol = 0;
+										}
+										System.out.println("Col " + c + " (" + cols[c] + ") is not unique.");
+									}
 								}
 						}
+						triedBigInt = false; // Don't convert to BigInteger twice (for INT or FLOAT/DOUBLE)
 						if (canBeDate[c] >= 0) canBeDate[c] = isDate(v) ? 1 : -1;
 						if (canBeOracleDate[c] >= 0) canBeOracleDate[c] = isOracleDate(v) ? 1 : -1;
 						if (canBeTime[c] >= 0) canBeTime[c] = isTime(v) ? 1 : -1;
 						if (canBeDateTime[c] >= 0) canBeDateTime[c] = isDateTime(v) ? 1 : -1;
 						if (canBeOracleDateTime[c] >= 0) canBeOracleDateTime[c] = isOracleDateTime(v) ? 1 : -1;
 						if (canBeInt[c] >= 0) {
-							BigInteger iv = interpretAsBigInt(v);
+							iv = interpretAsBigInt(v);
+							triedBigInt = true;
 							if (iv == null) canBeInt[c] = -1;
 							else {
 								canBeInt[c] = 1;
@@ -239,8 +261,14 @@ public class Csv2Mysql {
 								if (iv.compareTo(maxInts[c]) > 0) maxInts[c] = iv;
 							}
 						}
-						if (canBeDouble[c] >= 0) {
-							canBeDouble[c] = (isDouble(v) || interpretAsBigInt(v) != null) ? 1 : -1; // int can be double
+						if (canBeDouble[c] >= 0 || canBeFloat[c] >= 0) {
+							// int can be float or double
+							iv = (triedBigInt) ? iv : interpretAsBigInt(v);
+							int floatType = floatKind(v);
+							if (canBeFloat[c] >= 0)
+								canBeFloat[c] = (floatType == FLOAT || iv != null) ? 1 : -1;
+							if (canBeDouble[c] >= 0)
+								canBeDouble[c] = (floatType == FLOAT || floatType == DOUBLE || iv != null) ? 1 : -1; 
 						}
 						if (v.length() > colLengths[c]) colLengths[c] = v.length();
 					}
@@ -253,6 +281,7 @@ public class Csv2Mysql {
 			}	// end of iteration over elements of an entry				
 			treatLineAsNames = false;	// Possible only for first line
 		}	// end of iteration over entries in csv
+		if (progress) System.out.println("");
 		
 		// Now we generate the SQL to define the table that corresponds to this file:
 		String tableName = inf.getName();
@@ -276,7 +305,7 @@ public class Csv2Mysql {
 			if (canBeInt[c] > 0) {
 				if (keys && vals.get(c) != null && !areUniqueIntegers(vals.get(c))) {
 					vals.set(c, null);
-					System.out.println("Col " + c + " has unique strings but not integers.");
+					if (progress) System.out.println("Col " + c + " (" + cols[c] + ") has unique strings but not integers.");
 				}
 				BigInteger[] numberTops = numberMax;
 				if (minInts[c].compareTo(bigZero) >= 0) numberTops = numberMaxU;
@@ -288,10 +317,17 @@ public class Csv2Mysql {
 					}
 				}
 			}
+			else if (canBeFloat[c] > 0) {
+				if (keys && vals.get(c) != null && !areUniqueDoubles(vals.get(c))) {
+					vals.set(c, null);
+					if (progress) System.out.println("Col " + c + " (" + cols[c] + ") has unique strings but not Floats.");
+				}
+				sb.append(" FLOAT");
+			}
 			else if (canBeDouble[c] > 0) {
 				if (keys && vals.get(c) != null && !areUniqueDoubles(vals.get(c))) {
 					vals.set(c, null);
-					System.out.println("Col " + c + " has unique strings but not floats.");
+					if (progress) System.out.println("Col " + c + " (" + cols[c] + ") has unique strings but not Doubles.");
 				}
 				sb.append(" DOUBLE");
 			}
@@ -350,7 +386,9 @@ public class Csv2Mysql {
 		
 		fw.write(sb.toString());
 //		System.out.println(sb.toString());
-		System.out.println(inFile + ": " + ((treatedLineAsNames) ? lineNo - 1 : lineNo) + " entries");
+		if (progress) {
+			System.out.println(inFile + ": " + ((treatedLineAsNames) ? lineNo - 1 : lineNo) + " entries");
+		}
 	}
 	
 	private static String quoteIfNeeded(char c) {
@@ -452,40 +490,56 @@ public class Csv2Mysql {
 	static final double doubleMinNeg = -2.2250738585072014E-308;
 	static final double doubleMaxPos = 1.7976931348623157E+308;
 	static final double doubleMinPos = 2.2250738585072014E-308;
+	
+	static final int NOTFLOAT = 0;
+	static final int FLOAT = 1;
+	static final int DOUBLE = 2;
+	
+	static int floatKind(String s) {
+		Matcher m = floatPat.matcher(s);
+		if (!m.matches()) return NOTFLOAT;
+		Double d = new Double(s);
+		if (d==0.0d) return FLOAT;
+		if (d <= floatMinNeg && d >= floatMaxNeg) return FLOAT;
+		if (d >= floatMinPos && d <= floatMaxPos) return FLOAT;
+		if (d <= doubleMinNeg && d >= doubleMaxNeg) return DOUBLE;
+		if (d >= doubleMinPos && d <= doubleMaxPos) return DOUBLE;
+		return NOTFLOAT;
+	}
 
-	static boolean isFloat(String s) {
-		Matcher m = floatPat.matcher(s);
-		if (!m.matches()) return false;
-		Double d = new Double(s);
-		if (d==0.0d) return true;
-		if (d <= floatMinNeg && d >= floatMaxNeg) return true;
-		if (d >= floatMinPos && d <= floatMaxPos) return true;
-		return false;
-	}
-	
-	static boolean isDouble(String s) {
-		Matcher m = floatPat.matcher(s);
-		if (!m.matches()) return false;
-		Double d = new Double(s);
-		if (d==0.0d) return true;
-		if (d <= doubleMinNeg && d >= doubleMaxNeg) return true;
-		if (d >= doubleMinPos && d <= doubleMaxPos) return true;
-		return false;
-	}
-	
-	/** Determines whether the input string is a syntactically correct representation of a
-	 * SQL FLOAT or DOUBLE. This checks not only
-	 * the well-formed syntax of the number, but also its range.
-	 * Note that SQL doubles are syntactically different from Java doubles, in that one cannot
-	 * wrote 3.0D or 3.0E10D in SQL.
-	 * @param s
-	 * @return "float", "double", or "" (meaning no).
-	 */
-	static String floatType(String s) {
-		if (isFloat(s)) return "float";
-		if (isDouble(s)) return "double";
-		return "";
-	}
+//	static boolean isFloat(String s) {
+//		Matcher m = floatPat.matcher(s);
+//		if (!m.matches()) return false;
+//		Double d = new Double(s);
+//		if (d==0.0d) return true;
+//		if (d <= floatMinNeg && d >= floatMaxNeg) return true;
+//		if (d >= floatMinPos && d <= floatMaxPos) return true;
+//		return false;
+//	}
+//	
+//	static boolean isDouble(String s) {
+//		Matcher m = floatPat.matcher(s);
+//		if (!m.matches()) return false;
+//		Double d = new Double(s);
+//		if (d==0.0d) return true;
+//		if (d <= doubleMinNeg && d >= doubleMaxNeg) return true;
+//		if (d >= doubleMinPos && d <= doubleMaxPos) return true;
+//		return false;
+//	}
+//	
+//	/** Determines whether the input string is a syntactically correct representation of a
+//	 * SQL FLOAT or DOUBLE. This checks not only
+//	 * the well-formed syntax of the number, but also its range.
+//	 * Note that SQL doubles are syntactically different from Java doubles, in that one cannot
+//	 * wrote 3.0D or 3.0E10D in SQL.
+//	 * @param s
+//	 * @return "float", "double", or "" (meaning no).
+//	 */
+//	static String floatType(String s) {
+//		if (isFloat(s)) return "float";
+//		if (isDouble(s)) return "double";
+//		return "";
+//	}
 	
 	/** Determines whether the input BigInteger can be represented as a syntactically valid SQL integer, 
 	 * and determines the minimum "size" integer needed to represent it.
