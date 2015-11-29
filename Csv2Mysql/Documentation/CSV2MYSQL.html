@@ -28,8 +28,11 @@
       format of the <tt>.csv</tt> file by giving the comma, quote and
       escape characters.<br>
     </p>
-    <p>This program uses the <b>opencsv</b> package, documented at <a
+    <p>This program is released under the MIT License (see below) and
+      uses the <b>opencsv</b> package, documented at <a
         href="http://opencsv.sourceforge.net">http://opencsv.sourceforge.net</a>.&nbsp;
+
+
 
 
 
@@ -46,62 +49,52 @@
     <table border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top" align="center"><tt>-c</tt><tt><br>
-            </tt> </td>
+          <td valign="top" align="center"><tt>-c</tt></td>
           <td valign="top">Next argument is the <i>comma</i> character
-            [default <tt>"</tt>]<br>
-          </td>
+            [default <tt>"</tt>] </td>
         </tr>
         <tr>
-          <td valign="top"><tt>-q</tt><tt><br>
-            </tt> </td>
+          <td valign="top"><tt>-q</tt></td>
           <td valign="top">Next argument is the <i>quote</i> character
-            [default <tt>'</tt>]<br>
-          </td>
+            [default <tt>'</tt>]</td>
         </tr>
         <tr>
-          <td valign="top"><tt>-e</tt><tt><br>
-            </tt> </td>
+          <td valign="top"><tt>-e</tt></td>
           <td valign="top">Next argument is the <i>escape</i> character
             [default <tt>\</tt>]<br>
           </td>
         </tr>
         <tr>
-          <td valign="top"><tt>-o</tt><tt><br>
-            </tt> </td>
+          <td valign="top"><tt>-o</tt></td>
           <td valign="top">Next argument is the output file [default <tt>mysql_load.sql</tt>]<br>
           </td>
         </tr>
         <tr>
-          <td valign="top"><tt>-g</tt><tt><br>
-            </tt> </td>
+          <td valign="top"><tt>-g</tt></td>
           <td valign="top">First line of input files does <i>not</i>
             contain column names; use generated ones<br>
           </td>
         </tr>
         <tr>
-          <td valign="top"><tt>-b</tt><tt><br>
-            </tt> </td>
+          <td valign="top"><tt>-b</tt></td>
           <td valign="top">Empty columns are <i>not</i> treated as <tt>NULL</tt>
             values, but as themselves; <tt>NULL</tt><tt>s</tt> in MySQL
             are normally <tt>\N</tt> or <tt>"\N"</tt></td>
         </tr>
         <tr>
-          <td valign="top"><tt>-u</tt><tt><br>
-            </tt> </td>
+          <td valign="top"><tt>-u</tt></td>
           <td valign="top">Text encoding is <tt>UTF8</tt><br>
           </td>
         </tr>
         <tr>
-          <td valign="top"><tt>-k</tt><tt><br>
-            </tt> </td>
+          <td valign="top"><tt>-k</tt></td>
           <td valign="top">For each column, check if all the data values
             are distinct; create <tt>UNIQUE KEY</tt> constraints for
             those that are; this is slow for very large data sets<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">-<tt>m</tt><br>
+          <td valign="top"><tt>-m</tt><br>
           </td>
           <td valign="top">Maximum number of distinct values to track in
             a column [default 1,000,000]<br>
@@ -363,6 +356,8 @@
 
 
 
+
+
         KEY</tt> constraints.<br>
     </p>
     <p>Using the -k option asks the program to retain all values in each
@@ -385,6 +380,35 @@
       are distinct using its facilities.&nbsp; If so, <tt>ALTER TABLE</tt>
       can create the <tt>UNIQUE KEY</tt> constraints.<br>
     </p>
+    <h2>MIT License</h2>
+    <p>Copyright © 2015, Peter Szolovits, MIT<br>
+    </p>
+    <p>Permission is hereby granted, free of charge, to any person
+      obtaining a copy of this software and associated documentation
+      files (the "Software"), to deal in the Software without
+      restriction, including without limitation the rights to use, copy,
+      modify, merge, publish, distribute, sublicense, and/or sell copies
+      of the Software, and to permit persons to whom the Software is
+      furnished to do so, subject to the following conditions:<br>
+    </p>
+    <p>The above copyright notice and this permission notice shall be
+      included in all copies or substantial portions of the Software.<br>
+      <br>
+      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+      EXPRESS OR<br>
+      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+      MERCHANTABILITY,<br>
+      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.&nbsp; IN NO
+      EVENT SHALL THE<br>
+      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+      OTHER<br>
+      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+      ARISING FROM,<br>
+      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+      DEALINGS IN<br>
+      THE SOFTWARE.<br>
+    </p>
+    <p> </p>
     <p> </p>
   </body>
 </html>
