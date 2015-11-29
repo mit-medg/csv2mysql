@@ -106,6 +106,7 @@ public class Csv2Mysql {
 				e.printStackTrace();
 				System.exit(1);
 			}
+			long startTime = System.nanoTime();
 			for (String inFile: files)
 				try {
 					processFile(inFile);
@@ -120,7 +121,7 @@ public class Csv2Mysql {
 				e.printStackTrace();
 				System.exit(2);
 			}
-			if (progress) System.out.println("Completed " + files.size() + " files.");
+			if (progress) System.out.println("Completed " + files.size() + " files in " + (System.nanoTime() - startTime)/1000000 + " sec.");
 		}
 	}
 
@@ -182,6 +183,7 @@ public class Csv2Mysql {
 		boolean triedBigInt = false;
 
 		int lineNo = 0;
+		long startTime = System.nanoTime();
 		/* We keep track for each column of the following:
 		 * Are all elements parsable as integers? Min and Max values
 		 * As floats? Min and Max values
@@ -377,7 +379,8 @@ public class Csv2Mysql {
 		// Here is where to add UNIQUE KEY!
 		if (keys) {
 			for (int c = 0; c < nCols; c++) {
-				if (vals.get(c) != null  || ivals.get(c) != null) {
+				if ((vals.get(c) != null && !vals.get(c).isEmpty())  || 
+						(ivals.get(c) != null && !ivals.get(c).isEmpty())) {
 					sb.append(sep);
 					sb.append(comment);
 					sb.append("\n");
@@ -417,9 +420,9 @@ public class Csv2Mysql {
 		sb.append(";\n\n");
 		
 		fw.write(sb.toString());
-//		System.out.println(sb.toString());
 		if (progress) {
 			System.out.println(inFile + ": " + ((treatedLineAsNames) ? lineNo - 1 : lineNo) + " entries");
+			System.out.println(" ... " + (System.nanoTime() - startTime)/1000000 + " sec.");
 		}
 	}
 	
@@ -540,40 +543,6 @@ public class Csv2Mysql {
 		if (d >= doubleMinPos && d <= doubleMaxPos) return DOUBLE;
 		return NOTFLOAT;
 	}
-
-//	static boolean isFloat(String s) {
-//		Matcher m = floatPat.matcher(s);
-//		if (!m.matches()) return false;
-//		Double d = new Double(s);
-//		if (d==0.0d) return true;
-//		if (d <= floatMinNeg && d >= floatMaxNeg) return true;
-//		if (d >= floatMinPos && d <= floatMaxPos) return true;
-//		return false;
-//	}
-//	
-//	static boolean isDouble(String s) {
-//		Matcher m = floatPat.matcher(s);
-//		if (!m.matches()) return false;
-//		Double d = new Double(s);
-//		if (d==0.0d) return true;
-//		if (d <= doubleMinNeg && d >= doubleMaxNeg) return true;
-//		if (d >= doubleMinPos && d <= doubleMaxPos) return true;
-//		return false;
-//	}
-//	
-//	/** Determines whether the input string is a syntactically correct representation of a
-//	 * SQL FLOAT or DOUBLE. This checks not only
-//	 * the well-formed syntax of the number, but also its range.
-//	 * Note that SQL doubles are syntactically different from Java doubles, in that one cannot
-//	 * wrote 3.0D or 3.0E10D in SQL.
-//	 * @param s
-//	 * @return "float", "double", or "" (meaning no).
-//	 */
-//	static String floatType(String s) {
-//		if (isFloat(s)) return "float";
-//		if (isDouble(s)) return "double";
-//		return "";
-//	}
 	
 	/** Determines whether the input BigInteger can be represented as a syntactically valid SQL integer, 
 	 * and determines the minimum "size" integer needed to represent it.

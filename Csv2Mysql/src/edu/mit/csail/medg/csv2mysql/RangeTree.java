@@ -46,11 +46,17 @@ public class RangeTree {
 	
 	public boolean add(BigInteger val) {
 		
+		// Though somewhat controversial, MySQL allows multiple NULL values in a column
+		// that is declared as a UNIQUE KEY.  Therefore, we do too.
+		if (val == null) return true;
+		
 		// Find the ranges below and above val, if any
 		Map.Entry<BigInteger,BigInteger> flr = t.floorEntry(val);
 		Map.Entry<BigInteger,BigInteger> ceil = t.ceilingEntry(val);
 		
-		if (val == null || intersectsFloor(val, flr) || intersectsCeiling(val, ceil)) return false;
+		// If val intersects either of these ranges, we have a duplicate
+		if (intersectsFloor(val, flr) || intersectsCeiling(val, ceil)) return false;
+		// If val is adjacent to one of these ranges, simply extend it
 		else if (isJustAbove(val, flr)) {
 			t.put(flr.getKey(), val);
 			flr = t.floorEntry(val);
@@ -59,12 +65,14 @@ public class RangeTree {
 			t.remove(ceil.getKey());
 			t.put(val, ceil.getValue());
 		}
+		// Otherwise, add a new range
 		else {
 			t.put(val, val);
 			flr = t.floorEntry(val);
 			ceil = t.higherEntry(val);
 		}
 		
+		// If extension of a range caused two to meet, merge them.
 		if (meet(flr, ceil)) {
 			t.remove(ceil.getKey());
 			t.put(flr.getKey(), ceil.getValue()); 
@@ -91,6 +99,10 @@ public class RangeTree {
 	
 	private static boolean meet(Map.Entry<BigInteger, BigInteger> low, Map.Entry<BigInteger, BigInteger> high) {
 		return (low != null) && (high != null) && (low.getValue().add(BigInteger.ONE).compareTo(high.getKey()) >= 0);
+	}
+	
+	public boolean isEmpty() {
+		return t.isEmpty();
 	}
 	
 	public String toString() {
