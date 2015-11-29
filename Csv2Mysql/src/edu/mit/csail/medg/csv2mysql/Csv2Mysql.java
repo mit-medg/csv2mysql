@@ -23,6 +23,7 @@ import com.opencsv.CSVReader;
  *  -e escape, given as next argument
  *  -u text encoding is UTF8
  *  -k try to create unique keys
+ *  -m max number of possibly unique values/key to process
  *  -b empty column is NOT treated as NULL (normally \N), but as value
  *  -p print progress reports as the program runs
  *  
@@ -43,6 +44,7 @@ public class Csv2Mysql {
 	static boolean namesOnLine1 = true;
 	static boolean utf = false;
 	static boolean keys = false;
+	static int maxVals = 1000000;
 	static boolean blanksAreNull = true;
 	static boolean progress = false;
 	static final int reportEvery = 100000;
@@ -82,6 +84,10 @@ public class Csv2Mysql {
 				utf = true;
 			else if (arg.equals("-k"))
 				keys = true;
+			else if (arg.equals("-m") && a+1 < args.length) {
+				a++;
+				maxVals = new Integer(args[a]);
+			}
 			else if (arg.equals("-b"))
 				blanksAreNull = false;
 			else if (arg.equals("-p"))
@@ -170,6 +176,7 @@ public class Csv2Mysql {
 		long[] colLengths = null;
 		String[] cols = null;
 		ArrayList<HashSet<String>> vals = null;
+		ArrayList<RangeTree> ivals = null;
 		int printCol = 0;
 		BigInteger iv = null;
 		boolean triedBigInt = false;
@@ -204,6 +211,7 @@ public class Csv2Mysql {
 				maxInts = new BigInteger[nCols];
 				colLengths = new long[nCols];
 				vals = new ArrayList<HashSet<String>>(nCols);
+				ivals = new ArrayList<RangeTree>(nCols);
 				for (int i = 0; i < nCols; i++) {
 					cols[i] = "V" + i;
 					canBeInt[i] = 0;
@@ -217,7 +225,10 @@ public class Csv2Mysql {
 					minInts[i] = new BigInteger("99999999999999999999999999999999999999999999999999999999999999999");
 					maxInts[i] = new BigInteger("-99999999999999999999999999999999999999999999999999999999999999999");
 					colLengths[i] = 0L;
-					if (keys) vals.add(new HashSet<String>());
+					if (keys) {
+						vals.add(new HashSet<String>());
+						ivals.add(new RangeTree());
+					}
 				}
 			}
 			else if (nCols != line.length) {
@@ -230,20 +241,41 @@ public class Csv2Mysql {
 					if (v.equals("\\N") || (blanksAreNull && v.equals(""))) nullable[c] = true;
 					else {
 						if (keys) {
+							RangeTree t = ivals.get(c);
+							if ((t != null) && (canBeInt[c] >= 0)) {
+								BigInteger vi = interpretAsBigInt(v);
+								if (!t.add(vi)) {
+									// Either non-integer or duplicate
+									ivals.set(c,  null);
+									if (progress && vi !=null) {
+										if (printCol > 0) System.out.println("");
+										System.out.println("Col " + c + " (" + cols[c] + ") is not unique as integers.");
+										printCol = 0;
+									}
+								}
+							}
 							HashSet<String> s = vals.get(c);
-							if (s != null)
+							if (s != null) {
 								if (!s.contains(v)) 
 									s.add(v);
 								else {
 									vals.set(c, null);
 									if (progress) {
-										if (printCol > 0) {
-											System.out.println("");
-											printCol = 0;
-										}
+										if (printCol > 0) System.out.println("");
 										System.out.println("Col " + c + " (" + cols[c] + ") is not unique.");
+										printCol = 0;
 									}
 								}
+								if (s.size() > maxVals) {
+									vals.set(c,  null);
+									if (progress) {
+										if (printCol > 0) System.out.println("");
+										System.out.println("Col " + c + " (" + cols[c] + ") has more unique string values than max: " + maxVals 
+												+ ".\n We stop examining this column for unique keys as other than integers.");
+										printCol = 0;
+									}
+								}
+							}
 						}
 						triedBigInt = false; // Don't convert to BigInteger twice (for INT or FLOAT/DOUBLE)
 						if (canBeDate[c] >= 0) canBeDate[c] = isDate(v) ? 1 : -1;
@@ -345,7 +377,7 @@ public class Csv2Mysql {
 		// Here is where to add UNIQUE KEY!
 		if (keys) {
 			for (int c = 0; c < nCols; c++) {
-				if (vals.get(c) != null) {
+				if (vals.get(c) != null  || ivals.get(c) != null) {
 					sb.append(sep);
 					sb.append(comment);
 					sb.append("\n");
@@ -448,6 +480,7 @@ public class Csv2Mysql {
 		 "  -e escape, given as next argument",
 		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
 		 "  -k generate UNIQUE KEY constraints for columns with unique values",
+		 "  -m max number of possibly unique values/key to process if -k [default 100000]",
 		 "  -b empty column is NOT treated as NULL (normally \\N), but as value"};
 	
 	/*
