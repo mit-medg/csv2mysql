@@ -481,7 +481,8 @@ public class Csv2Mysql {
 		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
 		 "  -k generate UNIQUE KEY constraints for columns with unique values",
 		 "  -m max number of possibly unique values/key to process if -k [default 100000]",
-		 "  -b empty column is NOT treated as NULL (normally \\N), but as value"};
+		 "  -b empty column is NOT treated as NULL (normally \\N), but as value",
+		 "  -p print progress reports; each . is " + reportEvery + " rows; non-uniqueness is also reported if -k"};
 	
 	/*
 	 * To deal with MySql BIGINT, we have to accept numbers that are larger than Java's int, hence the
