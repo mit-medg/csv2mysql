@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -30,6 +30,7 @@
     </p>
     <p>This program uses the <b>opencsv</b> package, documented at <a
         href="http://opencsv.sourceforge.net">http://opencsv.sourceforge.net</a>.&nbsp;
+
 
 
       Its code is included in the program.<br>
@@ -97,6 +98,13 @@
           <td valign="top">For each column, check if all the data values
             are distinct; create <tt>UNIQUE KEY</tt> constraints for
             those that are; this is slow for very large data sets<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">-<tt>m</tt><br>
+          </td>
+          <td valign="top">Maximum number of distinct values to track in
+            a column [default 1,000,000]<br>
           </td>
         </tr>
         <tr>
@@ -328,6 +336,19 @@
       as integers.&nbsp; Similarly, "3" and "3.0" are the same
       floating-point value.<br>
     </p>
+    <p>We are able to maintain efficiently a representation of many
+      distinct integer values if they are dense enough to allow us to
+      represent them as a tree of ranges, which can be merged when they
+      meet.&nbsp; This is often the case for identifiers or serial
+      numbers.&nbsp; Because other data types are not "dense" in this
+      sense, we must actually keep all distinct values in order to find
+      a non-unique one.&nbsp; This explodes memory for very large
+      tables, so we limit to a maximum number of distinct values for
+      each column (see <tt>-m</tt> [default 1M]). Because the program
+      stops looking for duplicates after that limit, it cannot determine
+      whether a column can have a <tt>UNIQUE KEY</tt>, so it assumes
+      not.<br>
+    </p>
     <h2>Caveats</h2>
     <p>The above heuristics may not create the right data types.&nbsp;
       For example, some coding systems do distinguish between codes
@@ -339,6 +360,7 @@
       should be a table's <tt>PRIMARY KEY</tt>, or whether compound
       keys need to be defined to reflect the semantics and/or access
       patterns to the data.&nbsp; It is also unable to identify <tt>FOREIGN
+
 
 
         KEY</tt> constraints.<br>
