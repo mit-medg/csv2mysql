@@ -677,7 +677,7 @@ public class Csv2Mysql {
 	static final long hrPerDay = 24;
 	static final long minPerHr = 60;
 	static final long secPerMin = 60;
-	static final long nsPerSec = 1000000;
+	static final long nsPerSec = 1000000000;
 
 	static String toTime(long ns) {
 		long sec = ns/nsPerSec;
@@ -689,10 +689,10 @@ public class Csv2Mysql {
 		long day = hr/hrPerDay; hr = hr % hrPerDay;
 //		System.out.println(hr + ":" + day + " days");
 		StringBuilder sb = new StringBuilder();
-		if (day > 0) sb.append(day).append(" days; ");
-		if (day > 0 || hr > 0) sb.append(hr).append( " hours; ");
-		if (day > 0 || hr > 0 || min > 0) sb.append(min).append(" minutes; ");
-		sb.append(sec).append(" seconds;");
+		if (day > 0) sb.append(day).append(" days, ");
+		if (day > 0 || hr > 0) sb.append(hr).append( " hours, ");
+		if (day > 0 || hr > 0 || min > 0) sb.append(min).append(" minutes, ");
+		sb.append(sec).append(" seconds.");
 		return sb.toString();
 	}
 	
