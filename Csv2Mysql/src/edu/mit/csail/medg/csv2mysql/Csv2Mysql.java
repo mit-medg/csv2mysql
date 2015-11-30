@@ -121,7 +121,7 @@ public class Csv2Mysql {
 				e.printStackTrace();
 				System.exit(2);
 			}
-			if (progress) System.out.println("Completed " + files.size() + " files in " + (System.nanoTime() - startTime)/1000000 + " sec.");
+			if (progress) System.out.println("Completed " + files.size() + " files in " + toTime(System.nanoTime() - startTime));
 		}
 	}
 
@@ -422,7 +422,7 @@ public class Csv2Mysql {
 		fw.write(sb.toString());
 		if (progress) {
 			System.out.println(inFile + ": " + ((treatedLineAsNames) ? lineNo - 1 : lineNo) + " entries");
-			System.out.println(" ... " + (System.nanoTime() - startTime)/1000000 + " sec.");
+			System.out.println(" ... " + toTime(System.nanoTime() - startTime));
 		}
 	}
 	
@@ -672,6 +672,28 @@ public class Csv2Mysql {
 			if (len <= limits[i]) return textTypes[i];
 		}
 		return null;
+	}
+	
+	static final long hrPerDay = 24;
+	static final long minPerHr = 60;
+	static final long secPerMin = 60;
+	static final long nsPerSec = 1000000;
+
+	static String toTime(long ns) {
+		long sec = ns/nsPerSec;
+//		System.out.println(ns + ":" + sec + " sec");
+		long min = sec/secPerMin; sec = sec % secPerMin;
+//		System.out.println(sec + ":" + min + "min");
+		long hr = min/minPerHr; min = min % minPerHr;
+//		System.out.println(min + ":" + hr + " hours");
+		long day = hr/hrPerDay; hr = hr % hrPerDay;
+//		System.out.println(hr + ":" + day + " days");
+		StringBuilder sb = new StringBuilder();
+		if (day > 0) sb.append(day).append(" days; ");
+		if (day > 0 || hr > 0) sb.append(hr).append( " hours; ");
+		if (day > 0 || hr > 0 || min > 0) sb.append(min).append(" minutes; ");
+		sb.append(sec).append(" seconds;");
+		return sb.toString();
 	}
 	
 }
