@@ -1,9 +1,9 @@
 CSV2MYSQL: Heuristic Creation of MySQL Tables and Load Scripts
 ==============================================================
 
-Peter Szolovits  
-MIT Computer Science and Artificial Intelligence Laboratory  
-psz@mit.edu  
+### Peter Szolovits 
+### MIT Computer Science and Artificial Intelligence Laboratory  
+### psz@mit.edu  
 
 Introduction
 ------------
@@ -194,7 +194,7 @@ If so, `ALTER TABLE` can create the `UNIQUE KEY` constraints.
 MIT License
 -----------
 
-Copyright © 2015, Peter Szolovits, MIT\
+Copyright © 2015, Peter Szolovits, MIT  
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the
