@@ -37,34 +37,17 @@ a runnable `.jar` file, which can then be invoked as:
 
 The following options are available:  
 
-  ------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  `-c`    Next argument is the *comma* character \[default `,`\]
-
-  `-q`    Next argument is the *quote* character \[default `"`\]
-
-  `-e`    Next argument is the *escape* character \[default `\`\]\
-          
-
-  `-o`    Next argument is the output file \[default `mysql_load.sql`\]\
-          
-
-  `-g`    First line of input files does *not* contain column names; use generated ones\
-          
-
-  `-b`    Empty columns are *not* treated as `NULL` values, but as themselves; `NULL``s` in MySQL are normally `\N` or `"\N"`
-
-  `-u`    Text encoding is `UTF8`\
-          
-
-  `-k`    For each column, check if all the data values are distinct; create `UNIQUE KEY` constraints for those that are; this is slow for very large data sets\
-          
-
-  `-m`\   Maximum number of distinct values to track in a column \[default 1,000,000\]\
-          
-
-  `-p`    Report progress during scan of the data.  If multiple input files are specified, the program reports processing of each one, and prints a "." for every 100,000 lines of the input file that are read.  If `-k` is also given, it reports each time it has determined that a certain column of data is *not* unique.\
-          
-  ------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+`-c` | Next argument is the *comma* character \[default `,`\]
+---- | ------------------------------------------------------
+`-q` | Next argument is the *quote* character \[default `"`\]
+`-e` | Next argument is the *escape* character \[default `\`\]   
+`-o` | Next argument is the output file \[default `mysql_load.sql`\]   
+`-g` | First line of input files does *not* contain column names; use generated ones   
+`-b` | Empty columns are *not* treated as `NULL` values, but as themselves; `NULL``s` in MySQL are normally `\N` or `"\N"`  
+`-u` | Text encoding is `UTF8`  
+`-k` | For each column, check if all the data values are distinct; create `UNIQUE KEY` constraints for those that are; this is slow for very large data sets  
+`-m` | Maximum number of distinct values to track in a column \[default 1,000,000\]      
+`-p` | Report progress during scan of the data.  If multiple input files are specified, the program reports processing of each one, and prints a "." for every 100,000 lines of the input file that are read.  If `-k` is also given, it reports each time it has determined that a certain column of data is *not* unique.  
 
 If the program is run with no arguments, it prints the above
 information.  
@@ -84,22 +67,15 @@ An integer is an optional `+` or `-` sign followed by any number of the
 digits 0-9.  (We have no provisions for any radix other than 10.) MySQL
 has multiple integer data types of different sizes:  
 
-  -----------------------------------------------------------------------------------------------------------------------
-  MySQL Type\                Maximum Signed Value\                     Minimum Signed Value\    Maximum Unsigned Value\
-                                                                                                
-  -------------------------- ----------------------------------------- ------------------------ -------------------------
-  `TINYINT``             `   `127``             `                      `-128``             `    `255``             `
-
-  `SMALLINT`                 `32767`                                   `-32768`                 `65535`
-
-  `MEDIUMINT`                `8388607`                                 `-8388608`               `16777215`
-
-  `INT`                      `2147483647`                              `-2147483648`            `4294967295`
-
-  `BIGINT`                   `9223372036854775807`                     `-9223372036854775808`   `18446744073709551615`
-
-  `DECIMAL`                  `10^66 - 1`` (65 "9"'s)``             `   `-``10^66 + 1`           `10^66 - 1`
-  -----------------------------------------------------------------------------------------------------------------------
+| MySQL Type | Maximum Signed Value | Minimum Signed Value | Maximum Unsigned Value |
+| --- | --- | --- | --- |
+| `TINYINT` | `127` | `-128` | `255`  | 
+| `SMALLINT` | `32767` | `-32768` | `65535` |
+| `MEDIUMINT` | `8388607` | `-8388608` | `16777215` |
+| `INT` | `2147483647` | `-2147483648` | `4294967295` |
+| `BIGINT` | `9223372036854775807` | `-9223372036854775808` | `18446744073709551615` |
+| `DECIMAL` | `10^66 - 1`` (65 "9"'s)` | `-10^66 + 1` | `10^66 - 1` |
+---
 
 We choose the column data type that minimally fits the range of values
 seen.  If they are all non-negative, we choose `UNSIGNED` types.  
@@ -113,14 +89,10 @@ of 10 in scientific notation. We choose to represent such floating point
 values as one of the following MySQL types depending on their range of
 values:  
 
-  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  MySQL Type\               Largest Negative\                           Smallest Negative\                          Smallest Positive\                         Largest Positive\
-                                                                                                                                                               
-  ------------------------- ------------------------------------------- ------------------------------------------- ------------------------------------------ ------------------------------------------
-  `FLOAT``             `    `-3.402823466E+38``             `           `-1.175494351E-38``             `           `1.175494351E-38``             `           `3.402823466E+38``             `
-
-  `DOUBLE``             `   `-1.7976931348623157E+308``             `   `-2.2250738585072014E-308``             `   `2.2250738585072014E-308``             `   `1.7976931348623157E+308``             `
-  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| MySQL Type | Largest Negative | Smallest Negative | Smallest Positive | Largest Positive |
+| --- | --- | --- | --- | --- |
+| `FLOAT` | `-3.402823466E+38` | `-1.175494351E-38` | `1.175494351E-38` | `3.402823466E+38` |
+| `DOUBLE` | `-1.7976931348623157E+308` | `-2.2250738585072014E-308` | `2.2250738585072014E-308` | `1.7976931348623157E+308` | 
 
 Note that an integer can also appear in a floating-point field, but
 will be treated as floating-point if not all values in that field are
@@ -154,13 +126,13 @@ quotes but need not be, unless they contain characters (such as
 quotation marks) that can confuse the reader.  MySQL supports various
 lengths of character fields.  We use the following:  
 
-  MySQL Type`             `                                                           Maximum Length`             `   Maximum Length if UTF8`             `
-  ----------------------------------------------------------------------------------- ------------------------------- ---------------------------------------
-  `VARCHAR(255)``             `                                                       `255``             `            `84``             `
-  `TINYTEXT [`*not used* because it is equivalent to` VARCHAR(255)]``             `   `255`                           `84`
-  `TEXT`                                                                              `65535`                         `21844`
-  `MEDIUMTEXT`                                                                        `16777215`                      `5592402`
-  `LONGTEXT`                                                                          `4294967295L`                   `1431655765`
+| MySQL Type | Maximum Length | Maximum Length if UTF8 |
+| --- | --- | --- |
+| `VARCHAR(255)` | `255` | `84` |
+| `TINYTEXT` (*not used* because it is equivalent to `VARCHAR(255)`) | `255` | `84` |
+| `TEXT` | `65535` | `21844` |
+| `MEDIUMTEXT` | `16777215` | `5592402` | 
+| `LONGTEXT` | `4294967295L` | `1431655765` |
 
 We choose the field that is minimally able to store all values of a
 field.  For convenience, we also output the longest value as a comment
@@ -198,7 +170,7 @@ will do so and thus lose these distinctions.
 The program also cannot determine which among the `UNIQUE KEY`s should
 be a table's `PRIMARY KEY`, or whether compound keys need to be defined
 to reflect the semantics and/or access patterns to the data.  It is also
-unable to identify `FOREIGN                 KEY` constraints.  
+unable to identify `FOREIGN KEY` constraints.  
 
 Using the -k option asks the program to retain all values in each column
 so that it can check if those values are unique.  Although it stops
