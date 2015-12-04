@@ -1,9 +1,9 @@
 CSV2MYSQL: Heuristic Creation of MySQL Tables and Load Scripts
 ==============================================================
 
-### Peter Szolovits 
-### MIT Computer Science and Artificial Intelligence Laboratory  
-### psz@mit.edu  
+Peter Szolovits 
+MIT Computer Science and Artificial Intelligence Laboratory  
+psz@mit.edu  
 
 Introduction
 ------------
