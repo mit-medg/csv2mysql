@@ -37,6 +37,7 @@ a runnable `.jar` file, which can then be invoked as:
 
 The following options are available:  
 
+     |
 ---- | ------------------------------------------------------
 `-c` | Next argument is the *comma* character \[default `,`\]
 `-q` | Next argument is the *quote* character \[default `"`\]
