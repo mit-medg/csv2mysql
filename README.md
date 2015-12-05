@@ -91,7 +91,7 @@ values as one of the following MySQL types depending on their range of
 values:  
 
 | MySQL Type | Largest Negative | Smallest Negative | Smallest Positive | Largest Positive |
-| --- | --- | --- | --- | --- |
+| --- | ---:| ---:| ---:| ---:|
 | `FLOAT` | `-3.402823466E+38` | `-1.175494351E-38` | `1.175494351E-38` | `3.402823466E+38` |
 | `DOUBLE` | `-1.7976931348623157E+308` | `-2.2250738585072014E-308` | `2.2250738585072014E-308` | `1.7976931348623157E+308` | 
 
