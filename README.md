@@ -69,7 +69,7 @@ digits 0-9.  (We have no provisions for any radix other than 10.) MySQL
 has multiple integer data types of different sizes:  
 
 | MySQL Type | Maximum Signed Value | Minimum Signed Value | Maximum Unsigned Value |
-| --- | --- | --- | --- |
+| --- | --- :| --- :| --- :|
 | `TINYINT` | `127` | `-128` | `255`  | 
 | `SMALLINT` | `32767` | `-32768` | `65535` |
 | `MEDIUMINT` | `8388607` | `-8388608` | `16777215` |
