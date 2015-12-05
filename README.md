@@ -59,7 +59,15 @@ Heuristics
 The program reads through all of the input data, one file at a time. 
 Each file is processed separately, so there is no attempt to assure
 consistency among different tables.  The data types that are recognized
-are described in the following sub-sections.  If none of the entries in
+are described in the following sub-sections.  
+
+### NULLs
+
+Empty fields in the input data are treated as `NULL` unless the `-b` option
+is given; in that case, it is treated as an empty string, and `NULL` must be
+denoted by `\N` or `"\N"`.
+
+If none of the entries in
 a column are `NULL`, we specify `NOT NULL` for the column.  
 
 ### Integers
@@ -106,18 +114,26 @@ support larger `DECIMAL` fields, but do not do so.
 MySQL provides Date, Time and DateTime data types, which we support. 
 There is also a TimeStamp data type, but its range is much more limited
 than in other implementation such as Oracle, so we do not consider that
-possibility.  Dates are normally written as YYYY-MM-DD, though two-year
-dates or dates using / instead of - as a separator are also allowed. 
+possibility but use DateTime instead.  If every value in a field is `NULL` or a
+valid Date, Time, or DateTime, then the field will be declared with that
+data type.
+
+Dates are normally written as YYYY-MM-DD, 
+though two-digit years
+or dates using / instead of - as a separator are also allowed. 
 Times are written in 24-hour notation, as HH:MM:SS possibly followed by
-a time zone specification; the separators are either a colon, period or
+a decimal fractional second; the separators are either a colon, period or
 dash.  A DateTime is a date specification followed by either a space or
-the character T, followed by a time specification.  
+the character T, followed by a time specification.  Invalid dates or
+times are not considered to be dates or times and will probably cause the
+field to be interpreted as a text field.  Timezones are not handled.
 
 As a special case, we also recognize dates and times in a format often
 used in exporting from Oracle, which is of the form 15-jan-2015
-14:30:25.  If a column consistently codes an Oracle style date, time or
-datetime, we arrange to translate it on input into the SQL standard
-format.  
+14:30:25.  That may be followed by a space and a time zone specificiation
+(e.g., EST).  If a column consistently codes an Oracle style date, time or
+datetime/timestamp, we arrange to translate it on input into the SQL standard
+format, but ignore the time zone portion, if any.  
 
 ### Character
 
@@ -128,7 +144,7 @@ quotation marks) that can confuse the reader.  MySQL supports various
 lengths of character fields.  We use the following:  
 
 | MySQL Type | Maximum Length | Maximum Length if UTF8 |
-| --- | --- | --- |
+| --- | ---:| ---:|
 | `VARCHAR(255)` | `255` | `84` |
 | `TINYTEXT` (*not used* because it is equivalent to `VARCHAR(255)`) | `255` | `84` |
 | `TEXT` | `65535` | `21844` |
@@ -163,7 +179,7 @@ have a `UNIQUE KEY`, so it assumes not.
 Caveats
 -------
 
-The above heuristics may not create the right data types.  For example,
+The above heuristics may not create the intended data types.  For example,
 some coding systems do distinguish between codes "001" and "01", but if
 every code in a column can be interpreted as an integer, this program
 will do so and thus lose these distinctions.  
@@ -179,9 +195,9 @@ doing so for any column as soon as the first duplicate is found, the
 memory demands for a very large table with one or more unique columns
 can be huge.  Therefore, in such cases it is necessary to start the Java
 Virtual Machine with non-default memory parameters that can accommodate
-the large hash tables that hold these values. Obviously, this must be
+the large hash tables and range trees that hold these values. Obviously, this must be
 run on a system with enough memory.  For example, on one very large
-table containing about 250M rows, the following worked (though it may
+table containing about 250M rows, the following worked (though these `jvm` arguments may
 have provided more memory than needed):  
 
     java -Xms5128m -Xmx10512m -jar ~/bin/csv2mysql.jar -k -u test.csv
