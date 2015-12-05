@@ -15,7 +15,91 @@ import com.opencsv.CSVReader;
 
 /** Program to construct MySql table definitions and data import statements
  * from csv files.
- * The command line can specify:
+ * 
+ * The program may be
+      invoked as
+    </p>
+    <pre>java -jar csv2mysql.jar [options] file1 file2 ...</pre>
+    <p>The following options are available:<br>
+       <table width="100%" height="295" border="1" cellpadding="2"
+      cellspacing="2">
+      <tbody>
+        <tr>
+          <td valign="top" width="20" align="left"><tt>-c</tt></td>
+          <td valign="top">Next argument is the <i>comma</i> character
+            [default <tt>,</tt>] </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-q</tt></td>
+          <td valign="top">Next argument is the <i>quote</i> character
+            [default <tt>"</tt>]</td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-e</tt></td>
+          <td valign="top">Next argument is the <i>escape</i> character
+            [default <tt>\</tt>]<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-o</tt></td>
+          <td valign="top">Next argument is the output file [default <tt>mysql_load.sql</tt>]<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-g</tt></td>
+          <td valign="top">First line of input files does <i>not</i>
+            contain column names; use generated ones<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-b</tt></td>
+          <td valign="top">Empty columns are <i>not</i> treated as <tt>NULL</tt>
+            values, but as themselves; <tt>NULL</tt><tt>s</tt> in MySQL
+            are normally <tt>\N</tt> or <tt>"\N"</tt></td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-u</tt></td>
+          <td valign="top">Text encoding is <tt>UTF8</tt><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-k</tt></td>
+          <td valign="top">For each column, check if all the data values
+            are distinct; create <tt>UNIQUE KEY</tt> constraints for
+            those that are; this is slow for very large data sets<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-m</tt></td>
+          <td valign="top">Maximum number of distinct non-integer values
+            to track in a column [default 1,000,000]; if exceeded, stop
+            considering <tt>UNIQUE KEY</tt> for that column<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-p</tt></td>
+          <td valign="top">Report progress during scan of the
+            data.&nbsp; If multiple input files are specified, the
+            program reports processing of each one, and prints a "." for
+            every 100,000 lines of the input file that are read.&nbsp;
+            If <tt>-k</tt> is also given, it reports each time it has
+            determined that a certain column of data is <i>not</i>
+            unique.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+ * The program can be invoked in Unix-style systems (including Mac OS X, Linux) via a command such as
+ * java -jar csv2mysql.jar *.csv
+ * 
+ * We incorporate opencsv-3.3, slightly modified to remove its dependence on Apache StringUtils, to parse
+ * the input csv files.
+ * 
+ * @author psz
+ * April 18, 2015
+ */
+/*
  *  -g No column names are given in the first line of the csv; use generated names.
  *  -o File name to hold output; default is mysql_load.sql
  *  -c comma, given as next argument
@@ -26,15 +110,7 @@ import com.opencsv.CSVReader;
  *  -m max number of possibly unique values/key to process
  *  -b empty column is NOT treated as NULL (normally \N), but as value
  *  -p print progress reports as the program runs
- *  
- * The program can be invoked in Unix-style systems (including Mac OS X, Linux) via a command such as
- * java -jar csv2mysql.jar *.csv
- * 
- * We incorporate opencsv-3.3, slightly modified to remove its dependence on Apache StringUtils, to parse
- * the input csv files.
- * 
- * @author psz
- * April 18, 2015
+
  */
 public class Csv2Mysql {
 	
@@ -52,6 +128,9 @@ public class Csv2Mysql {
 	static ArrayList<String> files = new ArrayList<String>();
 	static FileWriter fw = null;
 
+	/** The main program. Takes arguments that are either options or file names.
+	 * @param args
+	 */
 	public static void main(String[] args) {
 		
 		boolean printedHelp = false;
@@ -125,6 +204,10 @@ public class Csv2Mysql {
 		}
 	}
 
+	/** Processes one file for Csv2Mysql.
+	 * @param inFile The file name to process
+	 * @throws IOException
+	 */
 	private static void processFile(String inFile) throws IOException {
 		
 		if (progress) System.out.println("Processing " + inFile);
@@ -426,6 +509,12 @@ public class Csv2Mysql {
 		}
 	}
 	
+	/** Given a char, returns a String containing that char or a string containing 
+	 * two characters, a \ followed by the char if it needs to be quoted (i.e, if it
+	 * is itself a \ or ').  If the char is the null character, the empty string is returned.
+	 * @param c
+	 * @return a String holding the input char or quoting it or empty if \0.
+	 */
 	private static String quoteIfNeeded(char c) {
 		String ans = String.valueOf(c);
 		if (c == CSVParser.NULL_CHARACTER) ans = "";
@@ -433,6 +522,18 @@ public class Csv2Mysql {
 		return ans;
 	}
 
+	/** 		
+	  This is a heuristic check to make sure that the first line of the .csv file, if 
+		 it's said to contain the names of columns, has reasonable column names.
+		 It can only be heuristic, because MySQL allows a very broad range of column names
+		 as long as they are included in backquote characters; hence almost any first line could be
+		 interpreted that way.
+		 Our heuristic assumes that all column names will consist only of the characters [0-9a-zA-Z$_]
+		 and will not start with a digit.
+
+	 * @param line an array of purported names
+	 * @return true if each name is valid according to our heuristic.
+	 */
 	private static boolean goodNames(String[] line) {
 		// This is a heuristic check to make sure that the first line of the .csv file, if 
 		// it's said to contain the names of columns, has reasonable column names.
@@ -455,13 +556,21 @@ public class Csv2Mysql {
 	
 	private static final Pattern goodNamePattern = Pattern.compile("[a-zA-Z$_][0-9a-zA-Z$_]*");
 
+	/** Issue a warning message if some line has the wrong number of fields. 
+	 * @param line the line
+	 * @param lineNo line number to report
+	 * @param nCols its actual number of columns
+	 */
 	private static void complainWrongLength(String[] line, int lineNo, int nCols) {
 		System.err.println("Line " + lineNo + " has " + line.length + " elements instead of " + nCols + ":");
 		for (int i = 0; i < Math.min(maxElementsToPrint, line.length); i++) System.err.println("  " + i + ": " + line[i]);
 	}
 	
-	private final static int maxElementsToPrint = 20;
+	private final static int maxElementsToPrint = 5;
 
+	/** Prints a help message if the program is called with no files to process
+	 * 
+	 */
 	private static void printHelp() {
 		for (String m: helpMsg) System.out.println(m);
 	}
@@ -532,6 +641,11 @@ public class Csv2Mysql {
 	static final int FLOAT = 1;
 	static final int DOUBLE = 2;
 	
+	/** Determines if its argument can be interpreted as a floating point numeric value.
+	 * @param s The String representing the value
+	 * @return one of NOTFLOAT, FLOAT, or DOUBLE, if the argument cannot be interpreted as a
+	 * floating point value, if it will fit within a FLOAT, or if it will fit within a DOUBLE.
+	 */
 	static int floatKind(String s) {
 		Matcher m = floatPat.matcher(s);
 		if (!m.matches()) return NOTFLOAT;
@@ -543,16 +657,11 @@ public class Csv2Mysql {
 		if (d >= doubleMinPos && d <= doubleMaxPos) return DOUBLE;
 		return NOTFLOAT;
 	}
-	
-	/** Determines whether the input BigInteger can be represented as a syntactically valid SQL integer, 
-	 * and determines the minimum "size" integer needed to represent it.
-	 * This only uses signed integer types.
-	 * Note that a later optimization may choose an unsigned integer column.
-	 * @param s String holding the possible integer
-	 * @return -1 if not a valid integer, or an index into xx, representing the values 
-	 * 		"tinyint", "smallint", "mediumint", "int", "bigint", or "decimal".
+		
+	/** Determines if its argument can be interpreted as a BigInteger
+	 * @param s The String representing the value 
+	 * @return The integer value or null if it cannot be thus interpreted
 	 */
-	
 	static BigInteger interpretAsBigInt(String s) {
 		Matcher m = intPat.matcher(s);
 		if (!m.matches()) return null;
@@ -584,6 +693,10 @@ public class Csv2Mysql {
 	static final String[] monthNames = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"};
 	static final int[] monthLengths = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 	
+	/** Determines whether its input can be interpreted as a date 
+	 * @param s the String input
+	 * @return true if the input matches the pattern for a SQL-style date and if the year, month and day components are valid
+	 */
 	static boolean isDate(String s) {
 		Matcher m = datePat.matcher(s);
 		boolean matched = m.matches();
@@ -598,32 +711,19 @@ public class Csv2Mysql {
 		}
 		return false;
 	}
-	
+
+	/** Determines whether its input can be interpreted as a time 
+	 * @param s the String input
+	 * @return true if the input matches the pattern for a SQL-style time and if the hour, minute and second components are valid
+	 */
 	static boolean isTime(String s) {
 		return timePat.matcher(s).matches();
 	}
 	
-	static boolean isOracleDateTime(String s) {
-		Matcher m = oracleDateTimePat.matcher(s);
-		boolean matched = m.matches();
-		return matched && okOracleMonthDay(m.group("mos"), m.group("da"));
-	}
-	
-	static boolean isOracleDate(String s) {
-		Matcher m = oracleDatePat.matcher(s);
-		if (m.matches()) return okOracleMonthDay(m.group("mos"), m.group("da"));
-		else return false;
-	}
-
-	
-	static boolean okOracleMonthDay(String month, String day) {
-		Integer da = new Integer(day);
-		for (int i = 0; i < monthNames.length; i++) 
-			if (month.equalsIgnoreCase(monthNames[i]) && da <= monthLengths[i])
-				return true;
-		return false;
-	}
-	
+	/** Determines whether its input can be interpreted as a datetime
+	 * @param s the String input
+	 * @return true if the input specifies a valid datetime value
+	 */
 	static boolean isDateTime(String s) {
 		Matcher m = dateTimePat.matcher(s);
 		if (m.matches()) {
@@ -637,7 +737,46 @@ public class Csv2Mysql {
 		}
 		return false;
 	}
+
+	/** Determines whether its input can be interpreted as a datetime or timestamp, as formatted by some Oracle tools
+	 * @param s the String input
+	 * @return true if the input can be interpreted as such.
+	 */
+	static boolean isOracleDateTime(String s) {
+		Matcher m = oracleDateTimePat.matcher(s);
+		boolean matched = m.matches();
+		return matched && okOracleMonthDay(m.group("mos"), m.group("da"));
+	}
 	
+	/** Determines whether its input can be interpreted as a date, as formatted by some Oracle tools
+	 * @param s the String input
+	 * @return true if the input can be interpreted as such.
+	 */
+	static boolean isOracleDate(String s) {
+		Matcher m = oracleDatePat.matcher(s);
+		if (m.matches()) return okOracleMonthDay(m.group("mos"), m.group("da"));
+		else return false;
+	}
+
+	/** Checks that the combination of month and day strings specify a valid date
+	 * @param month String holding the abbreviated name of a month
+	 * @param day String holding a string specifying the day of the month
+	 * @return true if the month and day form a valid date
+	 */
+	static boolean okOracleMonthDay(String month, String day) {
+		Integer da = new Integer(day);
+		for (int i = 0; i < monthNames.length; i++) 
+			if (month.equalsIgnoreCase(monthNames[i]) && da <= monthLengths[i])
+				return true;
+		return false;
+	}
+	
+	/** Given a unique set of strings, check if they form a unique set of integers.
+	 * The answer will be "no" if any of the Strings in fact do not specify integers or
+	 * if two distinct strings map to the same integer value, such as "1" and "001".
+	 * @param set a HashSet of Strings
+	 * @return true if the set of integers is also unique
+	 */
 	static boolean areUniqueIntegers(HashSet<String> set) {
 		HashSet<BigInteger> ints = new HashSet<BigInteger>();
 		for (String s: set) {
@@ -649,6 +788,12 @@ public class Csv2Mysql {
 		return true;
 	}
 	
+	/** Given a unique set of strings, check if they form a unique set of floating-point values.
+	 * The answer will be "no" if any of the Strings in fact do not specify floating values or
+	 * if two distinct strings map to the same float value, such as ".1" and "0.1" or "1e-1".
+	 * @param set a HashSet of Strings
+	 * @return true if the set of floating values is also unique
+	 */
 	static boolean areUniqueDoubles(HashSet<String> set) {
 		HashSet<Double> doubles = new HashSet<Double>();
 		for (String s: set) {
@@ -665,6 +810,12 @@ public class Csv2Mysql {
 	static final long[] textMaxU = {84, 84, 21844, 5592402, 1431655765};
 	static final long[] textMax = {255, 255, 65535, 16777215, 4294967295L};
 	
+	/** Determines the smallest text datatype that will hold strings of length len. If utf, then the limits are smaller
+	 * because utf8 characters require more bytes to represent. 
+	 * @param len maximum length of relevant character strings
+	 * @param utf whether the representation will be UTF8
+	 * @return the smalled text type that is large enough
+	 */
 	static String whichText(long len, boolean utf) {
 		long[] limits = textMax;
 		if (utf) limits = textMaxU;
@@ -679,6 +830,11 @@ public class Csv2Mysql {
 	static final long secPerMin = 60;
 	static final long nsPerSec = 1000000000;
 
+	/** A convenience function to turn a number of elapsed nanoseconds into a human understandable string
+	 * showing how many days, hours, minutes and seconds the input represents
+	 * @param ns number of nanoseconds
+	 * @return the String that shows its interpretation
+	 */
 	static String toTime(long ns) {
 		long sec = ns/nsPerSec;
 //		System.out.println(ns + ":" + sec + " sec");
