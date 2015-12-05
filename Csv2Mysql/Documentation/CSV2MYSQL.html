@@ -40,6 +40,7 @@
 
 
 
+
       Its code is included in the program.<br>
     </p>
     <h2>Using the Program</h2>
@@ -126,8 +127,15 @@
       time.&nbsp; Each file is processed separately, so there is no
       attempt to assure consistency among different tables.&nbsp; The
       data types that are recognized are described in the following
-      sub-sections.&nbsp; If none of the entries in a column are <tt>NULL</tt>,
-      we specify <tt>NOT NULL</tt> for the column.<br>
+      sub-sections.<br>
+    </p>
+    <h3>NULLs</h3>
+    <p>Empty fields in the input data are treated as NULL unless the <tt>-b</tt>
+      option is given; in that case, it is treated as an empty string,
+      and <tt>NULL</tt> must be denoted by <tt>\N</tt> or <tt>"\N"</tt>.<br>
+    </p>
+    <p>If none of the entries in a column are <tt>NULL</tt>, we specify
+      <tt>NOT NULL</tt> for the column.<br>
     </p>
     <h3>Integers</h3>
     <p>An integer is an optional <tt>+</tt> or <tt>-</tt> sign
@@ -150,43 +158,44 @@
         <tr>
           <td valign="top"><tt>TINYINT</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>127</tt><tt><br>
+          <td valign="top" align="right"><tt>127</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>-128</tt><tt><br>
+          <td valign="top" align="right"><tt>-128</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>255</tt><tt><br>
+          <td valign="top" align="right"><tt>255</tt><tt><br>
             </tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>SMALLINT</tt></td>
-          <td valign="top"><tt>32767</tt></td>
-          <td valign="top"><tt>-32768</tt></td>
-          <td valign="top"><tt>65535</tt></td>
+          <td valign="top" align="right"><tt>32767</tt></td>
+          <td valign="top" align="right"><tt>-32768</tt></td>
+          <td valign="top" align="right"><tt>65535</tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>MEDIUMINT</tt></td>
-          <td valign="top"><tt>8388607</tt></td>
-          <td valign="top"><tt>-8388608</tt></td>
-          <td valign="top"><tt>16777215</tt></td>
+          <td valign="top" align="right"><tt>8388607</tt></td>
+          <td valign="top" align="right"><tt>-8388608</tt></td>
+          <td valign="top" align="right"><tt>16777215</tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>INT</tt></td>
-          <td valign="top"><tt>2147483647</tt></td>
-          <td valign="top"><tt>-2147483648</tt></td>
-          <td valign="top"><tt>4294967295</tt></td>
+          <td valign="top" align="right"><tt>2147483647</tt></td>
+          <td valign="top" align="right"><tt>-2147483648</tt></td>
+          <td valign="top" align="right"><tt>4294967295</tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>BIGINT</tt></td>
-          <td valign="top"><tt>9223372036854775807</tt></td>
-          <td valign="top"><tt>-9223372036854775808</tt></td>
-          <td valign="top"><tt>18446744073709551615</tt></td>
+          <td valign="top" align="right"><tt>9223372036854775807</tt></td>
+          <td valign="top" align="right"><tt>-9223372036854775808</tt></td>
+          <td valign="top" align="right"><tt>18446744073709551615</tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>DECIMAL</tt></td>
-          <td valign="top"><tt>10^66 - 1</tt><tt> (65 "9"'s)</tt><tt><br>
+          <td valign="top" align="right"><tt>10^66 - 1</tt><tt> (65
+              "9"'s)</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>-</tt><tt>10^66 + 1</tt></td>
-          <td valign="top"><tt>10^66 - 1</tt></td>
+          <td valign="top" align="right"><tt>-</tt><tt>10^66 + 1</tt></td>
+          <td valign="top" align="right"><tt>10^66 - 1</tt></td>
         </tr>
       </tbody>
     </table>
@@ -220,25 +229,25 @@
         <tr>
           <td valign="top"><tt>FLOAT</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>-3.402823466E+38</tt><tt><br>
+          <td valign="top" align="right"><tt>-3.402823466E+38</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>-1.175494351E-38</tt><tt><br>
+          <td valign="top" align="right"><tt>-1.175494351E-38</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>1.175494351E-38</tt><tt><br>
+          <td valign="top" align="right"><tt>1.175494351E-38</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>3.402823466E+38</tt><tt><br>
+          <td valign="top" align="right"><tt>3.402823466E+38</tt><tt><br>
             </tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>DOUBLE</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>-1.7976931348623157E+308</tt><tt><br>
+          <td valign="top" align="right"><tt>-1.7976931348623157E+308</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>-2.2250738585072014E-308</tt><tt><br>
+          <td valign="top" align="right"><tt>-2.2250738585072014E-308</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>2.2250738585072014E-308</tt><tt><br>
+          <td valign="top" align="right"><tt>2.2250738585072014E-308</tt><tt><br>
             </tt></td>
-          <td valign="top"><tt>1.7976931348623157E+308</tt><tt><br>
+          <td valign="top" align="right"><tt>1.7976931348623157E+308</tt><tt><br>
             </tt></td>
         </tr>
       </tbody>
@@ -254,20 +263,29 @@
     <p>MySQL provides Date, Time and DateTime data types, which we
       support.&nbsp; There is also a TimeStamp data type, but its range
       is much more limited than in other implementation such as Oracle,
-      so we do not consider that possibility.&nbsp; Dates are normally
-      written as YYYY-MM-DD, though two-year dates or dates using /
-      instead of - as a separator are also allowed.&nbsp; Times are
-      written in 24-hour notation, as HH:MM:SS possibly followed by a
-      time zone specification; the separators are either a colon, period
-      or dash.&nbsp; A DateTime is a date specification followed by
-      either a space or the character T, followed by a time
-      specification.<br>
+      so we do not consider that possibility but use DateTime
+      instead.&nbsp;&nbsp; If every value in a field is <tt>NULL</tt>
+      or a valid Date, Time, or DateTime, then the field will be
+      declared with that data type.<br>
+    </p>
+    <p>Dates are normally written as YYYY-MM-DD, though two-digit years
+      or dates using / instead of - as a separator are also
+      allowed.&nbsp; Times are written in 24-hour notation, as HH:MM:SS
+      possibly followed by a decimal fractional second; the separators
+      are either a colon, period or dash.&nbsp; A DateTime is a date
+      specification followed by either a space or the character T,
+      followed by a time specification.&nbsp; Invalid dates or times are
+      not considered to be dates or times and will probably cause the
+      field to be interpreted as a text field. Timezones are not
+      handled.<br>
     </p>
     <p>As a special case, we also recognize dates and times in a format
       often used in exporting from Oracle, which is of the form
-      15-jan-2015 14:30:25.&nbsp; If a column consistently codes an
-      Oracle style date, time or datetime, we arrange to translate it on
-      input into the SQL standard format.<br>
+      15-jan-2015 14:30:25.&nbsp; That may be followed by a space and a
+      time zone specificiation (e.g., EST).&nbsp; If a field
+      consistently codes an Oracle style date, time or
+      datetime/timestamp, we arrange to translate it on input into the
+      SQL standard format, but ignore the time zone portion, if any.<br>
     </p>
     <h3> <thh valign="top">Character</thh></h3>
     <p>Data fields all of whose values cannot be parsed as any of the
@@ -290,32 +308,32 @@
         <tr>
           <td valign="top"><tt>VARCHAR(255)</tt><tt><br>
             </tt> </td>
-          <td valign="top"><tt>255</tt><tt><br>
+          <td valign="top" align="right"><tt>255</tt><tt><br>
             </tt> </td>
-          <td valign="top"><tt>84</tt><tt><br>
+          <td valign="top" align="right"><tt>84</tt><tt><br>
             </tt> </td>
         </tr>
         <tr>
           <td valign="top"><tt>TINYTEXT [</tt><i>not used</i> because it
             is equivalent to<tt> VARCHAR(255)]</tt><tt><br>
             </tt> </td>
-          <td valign="top"><tt>255</tt></td>
-          <td valign="top"><tt>84</tt></td>
+          <td valign="top" align="right"><tt>255</tt></td>
+          <td valign="top" align="right"><tt>84</tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>TEXT</tt></td>
-          <td valign="top"><tt>65535</tt></td>
-          <td valign="top"><tt>21844</tt></td>
+          <td valign="top" align="right"><tt>65535</tt></td>
+          <td valign="top" align="right"><tt>21844</tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>MEDIUMTEXT</tt></td>
-          <td valign="top"><tt>16777215</tt></td>
-          <td valign="top"><tt>5592402</tt></td>
+          <td valign="top" align="right"><tt>16777215</tt></td>
+          <td valign="top" align="right"><tt>5592402</tt></td>
         </tr>
         <tr>
           <td valign="top"><tt>LONGTEXT</tt></td>
-          <td valign="top"><tt>4294967295L</tt></td>
-          <td valign="top"><tt>1431655765</tt></td>
+          <td valign="top" align="right"><tt>4294967295L</tt></td>
+          <td valign="top" align="right"><tt>1431655765</tt></td>
         </tr>
       </tbody>
     </table>
@@ -347,16 +365,17 @@
       not.<br>
     </p>
     <h2>Caveats</h2>
-    <p>The above heuristics may not create the right data types.&nbsp;
-      For example, some coding systems do distinguish between codes
-      "001" and "01", but if every code in a column can be interpreted
-      as an integer, this program will do so and thus lose these
-      distinctions.<br>
+    <p>The above heuristics may not create the intended data
+      types.&nbsp; For example, some coding systems do distinguish
+      between codes "001" and "01", but if every code in a column can be
+      interpreted as an integer, this program will do so and thus lose
+      these distinctions.<br>
     </p>
     <p>The program also cannot determine which among the <tt>UNIQUE KEY</tt>s
       should be a table's <tt>PRIMARY KEY</tt>, or whether compound
       keys need to be defined to reflect the semantics and/or access
       patterns to the data.&nbsp; It is also unable to identify <tt>FOREIGN
+
 
 
 
@@ -375,10 +394,11 @@
       one or more unique columns can be huge.&nbsp; Therefore, in such
       cases it is necessary to start the Java Virtual Machine with
       non-default memory parameters that can accommodate the large hash
-      tables that hold these values. Obviously, this must be run on a
-      system with enough memory.&nbsp; For example, on one very large
-      table containing about 250M rows, the following worked (though it
-      may have provided more memory than needed):<br>
+      tables and range trees that hold these values. Obviously, this
+      must be run on a system with enough memory.&nbsp; For example, on
+      one very large table containing about 250M rows, the following
+      worked (though these <tt>jvm</tt> arguments may have provided
+      more memory than needed):<br>
     </p>
     <pre>java -Xms5128m -Xmx10512m -jar ~/bin/csv2mysql.jar -k -u test.csv</pre>
     <p>Even with extra memory, performance on very large data sets
