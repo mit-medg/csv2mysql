@@ -106,6 +106,7 @@ import com.opencsv.CSVReader;
  *  -q quote, given as next argument
  *  -e escape, given as next argument
  *  -u text encoding is UTF8
+ *  -z integers whose first digit is 0 are taken to be strings
  *  -k try to create unique keys
  *  -m max number of possibly unique values/key to process
  *  -b empty column is NOT treated as NULL (normally \N), but as value
@@ -163,6 +164,8 @@ public class Csv2Mysql {
 				utf = true;
 			else if (arg.equals("-k"))
 				keys = true;
+			else if (arg.equals("-z"))
+				intPat = intPatNZ;  
 			else if (arg.equals("-m") && a+1 < args.length) {
 				a++;
 				maxVals = new Integer(args[a]);
@@ -592,6 +595,7 @@ public class Csv2Mysql {
 		 "  -e escape, given as next argument",
 		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
 		 "  -k generate UNIQUE KEY constraints for columns with unique values",
+		 "  -z integers whose first digit is 0 are taken to be strings",
 		 "  -m max number of possibly unique values/key to process if -k [default 100000]",
 		 "  -b empty column is NOT treated as NULL (normally \\N), but as value",
 		 "  -p print progress reports; each . is " + reportEvery + " rows; non-uniqueness is also reported if -k"};
@@ -673,7 +677,8 @@ public class Csv2Mysql {
 			//new BigInteger("32432947598375923874x934742937");
 	
 	
-	static final Pattern intPat = Pattern.compile("(\\+|-)?\\d+");
+	static Pattern intPat = Pattern.compile("(\\+|-)?\\d+");
+	static final Pattern intPatNZ = Pattern.compile("(\\+|-)?(0|[1-9]\\d*)");	// intPat that disallows leading 0
 	static final Pattern floatPat = Pattern.compile("(\\+|-)?(\\d+(\\.\\d*)|\\d*\\.\\d+)(E(\\+|-)?\\d+)?", Pattern.CASE_INSENSITIVE);
 //	static final Pattern doublePat = Pattern.compile("(\\+|-)?(\\d+(\\.\\d*)|\\d*\\.\\d+)(D(\\+|-)?\\d+)?", Pattern.CASE_INSENSITIVE);
 	static final String datePatS = "(?<yr>\\d\\d\\d\\d|\\d\\d)(?<a>[-/^])(?<mo>\\d\\d?)\\k<a>(?<da>\\d\\d?)";

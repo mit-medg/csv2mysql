@@ -41,6 +41,7 @@
 
 
 
+
       Its code is included in the program.<br>
     </p>
     <h2>Using the Program</h2>
@@ -51,8 +52,8 @@
     <pre>java -jar csv2mysql.jar [options] file1 file2 ...</pre>
     <p>The following options are available:<br>
     </p>
-    <table width="100%" height="295" border="1" cellpadding="2"
-      cellspacing="2">
+    <table border="1" cellpadding="2" cellspacing="2" width="100%"
+      height="295">
       <tbody>
         <tr>
           <td valign="top" width="20" align="left"><tt>-c</tt></td>
@@ -90,6 +91,13 @@
         <tr>
           <td valign="top" width="20"><tt>-u</tt></td>
           <td valign="top">Text encoding is <tt>UTF8</tt><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top"><tt>-z</tt><br>
+          </td>
+          <td valign="top">Integers whose first digit is 0 are taken to
+            be strings<br>
           </td>
         </tr>
         <tr>
@@ -143,7 +151,7 @@
       provisions for any radix other than 10.) MySQL has multiple
       integer data types of different sizes:<br>
     </p>
-    <table width="100%" border="1" cellpadding="2" cellspacing="2">
+    <table border="1" cellpadding="2" cellspacing="2" width="100%">
       <tbody>
         <tr>
           <th valign="top">MySQL Type<br>
@@ -211,8 +219,8 @@
       represent such floating point values as one of the following MySQL
       types depending on their range of values:<br>
     </p>
-    <table width="1015" height="86" border="1" cellpadding="2"
-      cellspacing="2">
+    <table border="1" cellpadding="2" cellspacing="2" width="1015"
+      height="86">
       <tbody>
         <tr>
           <th valign="top">MySQL Type<br>
@@ -295,7 +303,7 @@
       reader.&nbsp; MySQL supports various lengths of character
       fields.&nbsp; We use the following:<br>
     </p>
-    <table width="100%" border="1" cellpadding="2" cellspacing="2">
+    <table border="1" cellpadding="2" cellspacing="2" width="100%">
       <tbody>
         <tr>
           <th valign="top">MySQL Type<tt><br>
@@ -348,8 +356,9 @@
       floating-point values, we test for distinctness by actually
       converting each value into the corresponding type. This is because
       although "001" and "1" are distinct as strings, they are identical
-      as integers.&nbsp; Similarly, "3" and "3.0" are the same
-      floating-point value.<br>
+      as integers.&nbsp; (The -z option handles this specific problem by
+      treating integers that begin with 0 as strings.) Similarly, "3"
+      and "3.0" are the same floating-point value.<br>
     </p>
     <p>We are able to maintain efficiently a representation of many
       distinct integer values if they are dense enough to allow us to
@@ -375,6 +384,7 @@
       should be a table's <tt>PRIMARY KEY</tt>, or whether compound
       keys need to be defined to reflect the semantics and/or access
       patterns to the data.&nbsp; It is also unable to identify <tt>FOREIGN
+
 
 
 
