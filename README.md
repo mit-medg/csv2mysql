@@ -41,12 +41,16 @@ Option  | Meaning
 ---- | ------------------------------------------------------
 `-c` | Next argument is the *comma* character \[default `,`\]
 `-q` | Next argument is the *quote* character \[default `"`\]
-`-e` | Next argument is the *escape* character \[default `\`\]   
-`-o` | Next argument is the output file \[default `mysql_load.sql`\]   
-`-g` | First line of input files does *not* contain column names; use generated ones   
-`-b` | Empty columns are *not* treated as `NULL` values, but as themselves; `NULL``s` in MySQL are normally `\N` or `"\N"`  
-`-u` | Text encoding is `UTF8`  
-`-k` | For each column, check if all the data values are distinct; create `UNIQUE KEY` constraints for those that are; this is slow for very large data sets  
+`-e` | Next argument is the *escape* character \[default `\`\]
+`-o` | Next argument is the output file \[default `mysql_load.sql`\]
+`-g` | First line of input files does *not* contain column names; use generated ones
+`-b` | Empty columns are *not* treated as `NULL` values, but as themselves; `NULL``s` in MySQL are normally `\N` or `"\N"`
+`-u` | Text encoding is `UTF8`
+`-z` | Integers whose first digit is 0 are treated as strings; distinguishes, e.g., `123` from `0123`
+`-k` | For each column, check if all the data values are distinct;
+create `UNIQUE KEY` constraints for those that are, except
+floating-point values; this is slow for very large data sets
+`-f` | if `-k`, also tries to find `UNIQUE KEY`s for floats
 `-m` | Maximum number of distinct values to track in a column \[default 1,000,000\]      
 `-p` | Report progress during scan of the data.  If multiple input files are specified, the program reports processing of each one, and prints a "." for every 100,000 lines of the input file that are read.  If `-k` is also given, it reports each time it has determined that a certain column of data is *not* unique.  
 
@@ -87,7 +91,13 @@ has multiple integer data types of different sizes:
 ---
 
 We choose the column data type that minimally fits the range of values
-seen.  If they are all non-negative, we choose `UNSIGNED` types.  
+seen.  If they are all non-negative, we choose `UNSIGNED` types.
+
+For some data, fields that include integers that begin with `0` are
+meant to be treated as code strings, not integers.  The `-z` switch
+specifies this option. In that case, `0`, `+0` and `-0` are still
+treated as the integer `0`, but items like `007`, `+03` and `-0999`
+are taken to be strings.
 
 ### Floating-point
 
@@ -157,13 +167,20 @@ in the table definition.
 
 ### Unique Keys
 
-If requested, we test to see whether every value (except `NULL`) in a
+If requested by `-k`, we test to see whether every value (except `NULL`) in a
 column is distinct.  If so, we create a `UNIQUE KEY` constraint for that
-column.  If a column has all integer or floating-point values, we test
-for distinctness by actually converting each value into the
-corresponding type. This is because although "001" and "1" are distinct
-as strings, they are identical as integers.  Similarly, "3" and "3.0"
-are the same floating-point value.  
+column. Except for numeric types, distinctness is determined by
+textual identity.  This may not be correct for dates and times, whose
+syntax allows for some variability among equivalent values.
+
+If a column has all integer values, we test for distinctness by
+actually converting each value integers. This is because although
+`001` and `1` are distinct as strings, they are identical as
+integers.  With the option `-f`, we treat floating-point values
+similarly; `3` and `3.0` are the same floating-point value. Note that
+with the `-z` option, fields that might contain integers but with
+leading zeros will be considered as strings, in which case `001` and
+`1` would be distinct.
 
 We are able to maintain efficiently a representation of many distinct
 integer values if they are dense enough to allow us to represent them as
@@ -174,7 +191,7 @@ order to find a non-unique one.  This explodes memory for very large
 tables, so we limit to a maximum number of distinct values for each
 column (see `-m` \[default 1M\]). Because the program stops looking for
 duplicates after that limit, it cannot determine whether a column can
-have a `UNIQUE KEY`, so it assumes not.  
+have a `UNIQUE KEY`, so it assumes not. 
 
 Caveats
 -------
@@ -182,7 +199,7 @@ Caveats
 The above heuristics may not create the intended data types.  For example,
 some coding systems do distinguish between codes "001" and "01", but if
 every code in a column can be interpreted as an integer, this program
-will do so and thus lose these distinctions.  
+will do so unless `-z` is specified, and thus lose these distinctions.  
 
 The program also cannot determine which among the `UNIQUE KEY`s should
 be a table's `PRIMARY KEY`, or whether compound keys need to be defined
@@ -200,7 +217,7 @@ run on a system with enough memory.  For example, on one very large
 table containing about 250M rows, the following worked (though these `jvm` arguments may
 have provided more memory than needed):  
 
-    java -Xms5128m -Xmx10512m -jar ~/bin/csv2mysql.jar -k -u test.csv
+    java -Xms5128m -Xmx10512m -jar ~/bin/csv2mysql.jar -k -u -m 250000000 test.csv
 
 Even with extra memory, performance on very large data sets becomes
 abysmal.  Thus, rather than using the `-k` option, it may be more
