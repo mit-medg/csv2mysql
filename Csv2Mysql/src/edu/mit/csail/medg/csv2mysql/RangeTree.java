@@ -17,23 +17,27 @@ import java.math.BigInteger;
  * as well as ordering.
  * 
  * Adding a new value to a RangeTree does one of the following:
- * <ol>
+ * 
+<ol>
 <li>If the value is already present, return false.</li>
 <li>If the value is less than the low end of the lowest range,
-then</li>
+then
 <ul>
 <li>If it is one less, extend that range,</li>
 <li>Otherwise, add a new range for that value.</li>
 </ul>
-<li>If the value falls between two ranges,</li>
+</li>
+<li>If the value falls between two ranges, then
 <ul>
-<li>If it is one greater than the top of the range below, extend
-that,</li>
+<li>If it is one greater than the top of the range below,
+extend that, </li>
 <li>If it is one less than the range above, extend that,</li>
 <li>Otherwise, add a new range for that value.<br>
 </li>
 </ul>
+</li>
 </ol>
+
 Then, if the two ranges now meet, merge them.<p>
  *   
  * We represent the RangeTree as a TreeMap in which each entry has as its key the low end of
@@ -47,7 +51,7 @@ Then, if the two ranges now meet, merge them.<p>
                     x
                           x
                        x                    
-</pre><br/>        
+</pre><br>        
  * We use a TreeMap to implement a range element, where the key is the lowest value of the range and
  * the value is the highest.
  * 
@@ -132,7 +136,7 @@ public class RangeTree {
 		return t.isEmpty();
 	}
 	
-	/** Adds the number of distinct values in the tree. This is the sum of the number of values in
+	/** Gives the number of distinct values in the tree. This is the sum of the number of values in
 	 * each element of the tree.
 	 * @return Total number of distinct elements in the RangeTree
 	 */

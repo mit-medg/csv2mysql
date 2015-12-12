@@ -9,7 +9,7 @@ public class Main {
 //	static RangeTree t = new RangeTree();
 
 	/** The main program is just a wrapper for Csv2Mysql so we need not specify the package.
-	 * @param args
+	 * @param args the shell's program arguments
 	 */
 	public static void main(String[] args) {
 		edu.mit.csail.medg.csv2mysql.Csv2Mysql.main(args);

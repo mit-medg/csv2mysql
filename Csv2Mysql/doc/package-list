@@ -1,5 +1,1 @@
-
-com.opencsv
-com.opencsv.bean
-com.opencsv.stream.reader
 edu.mit.csail.medg.csv2mysql

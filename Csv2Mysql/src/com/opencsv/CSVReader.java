@@ -360,11 +360,11 @@ public class CSVReader implements Closeable, Iterable<String[]> {
 
     /**
      * Returns if the CSVReader will verify the reader before each read.
-     * <p/>
+     * <p>
      * By default the value is true which is the functionality for version 3.0.
      * If set to false the reader is always assumed ready to read - this is the functionality
      * for version 2.4 and before.
-     * <p/>
+     * <p>
      * The reason this method was needed was that certain types of Readers would return
      * false for its ready() method until a read was done (namely readers created using Channels).
      * This caused opencsv not to read from those readers.

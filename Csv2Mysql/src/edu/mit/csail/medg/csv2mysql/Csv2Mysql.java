@@ -19,11 +19,11 @@ import com.opencsv.CSVReader;
  * 
  * The program may be
       invoked as
-    </p>
+      
     <pre>java -jar csv2mysql.jar [options] file1 file2 ...</pre>
     <p>The following options are available:<br>
-       <table width="100%" height="295" border="1" cellpadding="2"
-      cellspacing="2">
+       <table width="100%" border="1" cellpadding="2"
+      cellspacing="2" summary="Options for csv2mysql">
       <tbody>
         <tr>
           <td valign="top" width="20" align="left"><tt>-c</tt></td>
@@ -143,7 +143,7 @@ public class Csv2Mysql {
 	static FileWriter fw = null;
 
 	/** The main program. Takes arguments that are either options or file names.
-	 * @param args
+	 * @param args the shell's program arguments
 	 */
 	public static void main(String[] args) {
 				
