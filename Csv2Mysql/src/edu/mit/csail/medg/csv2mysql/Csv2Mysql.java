@@ -6,6 +6,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -63,10 +64,20 @@ import com.opencsv.CSVReader;
           </td>
         </tr>
         <tr>
+          <td valign="top" width="20"><tt>-z</tt></td>
+          <td valign="top">integers whose first digit is 0 are taken to be strings<br>
+          </td>
+        </tr>
+        <tr>
           <td valign="top" width="20"><tt>-k</tt></td>
           <td valign="top">For each column, check if all the data values
             are distinct; create <tt>UNIQUE KEY</tt> constraints for
-            those that are; this is slow for very large data sets<br>
+            those that are, except for floating-point values; this is slow for very large data sets<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" width="20"><tt>-f</tt></td>
+          <td valign="top">If <tt>-k</tt>, tries to create unique keys for floating point values as well<br>
           </td>
         </tr>
         <tr>
@@ -108,6 +119,7 @@ import com.opencsv.CSVReader;
  *  -u text encoding is UTF8
  *  -z integers whose first digit is 0 are taken to be strings
  *  -k try to create unique keys
+ *  -f if -k, also try to create unique keys on floating-point
  *  -m max number of possibly unique values/key to process
  *  -b empty column is NOT treated as NULL (normally \N), but as value
  *  -p print progress reports as the program runs
@@ -123,6 +135,7 @@ public class Csv2Mysql {
 	static boolean keys = false;
 	static int maxVals = 1000000;
 	static boolean blanksAreNull = true;
+	static boolean floatUnique = false;
 	static boolean progress = false;
 	static final int reportEvery = 100000;
 	static String outFileName = "mysql_load.sql";
@@ -133,7 +146,7 @@ public class Csv2Mysql {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		
+				
 		boolean printedHelp = false;
 
 		for (int a = 0; a < args.length; a++) {
@@ -165,7 +178,9 @@ public class Csv2Mysql {
 			else if (arg.equals("-k"))
 				keys = true;
 			else if (arg.equals("-z"))
-				intPat = intPatNZ;  
+				intPat = intPatNZ;
+			else if (arg.equals("-f"))
+				floatUnique = true;
 			else if (arg.equals("-m") && a+1 < args.length) {
 				a++;
 				maxVals = new Integer(args[a]);
@@ -183,6 +198,8 @@ public class Csv2Mysql {
 				File inFile1 = new File(files.get(0));
 				File outFile1 = new File(inFile1.getParent(), outFileName);
 				fw = new FileWriter(outFile1);
+				fw.write("-- csv2mysql with arguments: " + Arrays.toString(args) + "\n\n");
+				fw.write("warnings\n");
 			} catch (IOException e) {
 				System.err.println("Could not create output file.");
 				e.printStackTrace();
@@ -213,7 +230,7 @@ public class Csv2Mysql {
 	 */
 	private static void processFile(String inFile) throws IOException {
 		
-		if (progress) System.out.println("Processing " + inFile);
+		if (progress) System.out.println("\nProcessing " + inFile);
 		CSVReader r = null;
 		File inf = new File(inFile);
 		try {
@@ -401,7 +418,7 @@ public class Csv2Mysql {
 			}	// end of iteration over elements of an entry				
 			treatLineAsNames = false;	// Possible only for first line
 		}	// end of iteration over entries in csv
-		if (progress) System.out.println("");
+		if (progress && printCol > 0) System.out.println("");
 		
 		// Now we generate the SQL to define the table that corresponds to this file:
 		String tableName = inf.getName();
@@ -413,7 +430,7 @@ public class Csv2Mysql {
 		StringBuilder sb = new StringBuilder();
 		sb.append("DROP TABLE IF EXISTS " + tableName + ";\n");
 		String sep = " (";
-		String comment = "";
+		String comment = "\t-- rows=" + lineNo;
 		sb.append("CREATE TABLE " + tableName);
 		for (int c = 0; c < nCols; c++) {
 			sb.append(sep);
@@ -438,23 +455,41 @@ public class Csv2Mysql {
 				}
 			}
 			else if (canBeFloat[c] > 0) {
-				if (keys && vals.get(c) != null && !areUniqueDoubles(vals.get(c))) {
-					vals.set(c, null);
-					if (progress) System.out.println("Col " + c + " (" + cols[c] + ") has unique strings but not Floats.");
+				ivals.set(c, null);
+				if (keys && vals.get(c) != null) {
+					if (!floatUnique) vals.set(c, null);
+					else if (!areUniqueDoubles(vals.get(c))) {
+						vals.set(c, null);
+						if (progress) System.out.println("Col " + c + " (" + cols[c] + ") has unique strings but not Floats.");
+					}
 				}
 				sb.append(" FLOAT");
 			}
 			else if (canBeDouble[c] > 0) {
-				if (keys && vals.get(c) != null && !areUniqueDoubles(vals.get(c))) {
-					vals.set(c, null);
-					if (progress) System.out.println("Col " + c + " (" + cols[c] + ") has unique strings but not Doubles.");
+				ivals.set(c, null);
+				if (keys && vals.get(c) != null) {
+					if (!floatUnique) vals.set(c, null);
+					else if (!areUniqueDoubles(vals.get(c))) {
+						vals.set(c, null);
+						if (progress) System.out.println("Col " + c + " (" + cols[c] + ") has unique strings but not Doubles.");
+					}
 				}
 				sb.append(" DOUBLE");
 			}
-			else if (canBeDateTime[c] > 0 || canBeOracleDateTime[c] > 0) sb.append(" DATETIME");
-			else if (canBeDate[c] > 0 || canBeOracleDate[c] > 0) sb.append(" DATE");
-			else if (canBeTime[c] > 0) sb.append(" TIME");
+			else if (canBeDateTime[c] > 0 || canBeOracleDateTime[c] > 0) {
+				ivals.set(c, null);
+				sb.append(" DATETIME");
+			}
+			else if (canBeDate[c] > 0 || canBeOracleDate[c] > 0) {
+				ivals.set(c, null);
+				sb.append(" DATE");
+			}
+			else if (canBeTime[c] > 0) {
+				ivals.set(c, null);
+				sb.append(" TIME");
+			}
 			else {	// Chars
+				ivals.set(c, null);
 				String textType = whichText(colLengths[c], utf);
 				if (textType==null) textType = "LONGTEXT";	// should never happen
 				sb.append(" " + textType);
@@ -465,12 +500,14 @@ public class Csv2Mysql {
 		// Here is where to add UNIQUE KEY!
 		if (keys) {
 			for (int c = 0; c < nCols; c++) {
-				if ((vals.get(c) != null && !vals.get(c).isEmpty())  || 
-						(ivals.get(c) != null && !ivals.get(c).isEmpty())) {
+				BigInteger nVals = BigInteger.ZERO; 
+				if (ivals.get(c) != null) nVals = ivals.get(c).nInRange();
+				if (vals.get(c) != null) nVals = BigInteger.valueOf(vals.get(c).size());
+				if (nVals.compareTo(BigInteger.ZERO) > 0) {
 					sb.append(sep);
 					sb.append(comment);
 					sb.append("\n");
-					comment = "";
+					comment = "\t-- nvals=" + nVals;
 					sb.append("  UNIQUE KEY " + tableName + "_" + cols[c] + " (" + cols[c] + ")");
 				}					
 			}
@@ -594,7 +631,8 @@ public class Csv2Mysql {
 		 "  -q quote, given as next argument",
 		 "  -e escape, given as next argument",
 		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
-		 "  -k generate UNIQUE KEY constraints for columns with unique values",
+		 "  -k generate UNIQUE KEY constraints for columns with unique values (except FLOAT or DOUBLE)",
+		 "  -f if -k, tries to generate UNIQUE KEYs for FLOAT or DOUBLE as well",
 		 "  -z integers whose first digit is 0 are taken to be strings",
 		 "  -m max number of possibly unique values/key to process if -k [default 100000]",
 		 "  -b empty column is NOT treated as NULL (normally \\N), but as value",

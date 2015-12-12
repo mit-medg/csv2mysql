@@ -132,6 +132,18 @@ public class RangeTree {
 		return t.isEmpty();
 	}
 	
+	/** Adds the number of distinct values in the tree. This is the sum of the number of values in
+	 * each element of the tree.
+	 * @return Total number of distinct elements in the RangeTree
+	 */
+	public BigInteger nInRange() {
+		BigInteger total = BigInteger.ZERO;
+		for (BigInteger k: t.keySet()) {
+			total = total.add(t.get(k).subtract(k).add(BigInteger.ONE));
+		}
+		return total;
+	}
+	
 	public String toString() {
 		StringBuilder sb = new StringBuilder("[");
 		String sep = "";
