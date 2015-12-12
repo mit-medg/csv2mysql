@@ -47,15 +47,13 @@ Option  | Meaning
 `-b` | Empty columns are *not* treated as `NULL` values, but as themselves; `NULL``s` in MySQL are normally `\N` or `"\N"`
 `-u` | Text encoding is `UTF8`
 `-z` | Integers whose first digit is 0 are treated as strings; distinguishes, e.g., `123` from `0123`
-`-k` | For each column, check if all the data values are distinct;
-create `UNIQUE KEY` constraints for those that are, except
-floating-point values; this is slow for very large data sets
+`-k` | For each column, check if all the data values are distinct; create `UNIQUE KEY` constraints for those that are, except floating-point values; this is slow for very large data sets
 `-f` | if `-k`, also tries to find `UNIQUE KEY`s for floats
 `-m` | Maximum number of distinct values to track in a column \[default 1,000,000\]      
-`-p` | Report progress during scan of the data.  If multiple input files are specified, the program reports processing of each one, and prints a "." for every 100,000 lines of the input file that are read.  If `-k` is also given, it reports each time it has determined that a certain column of data is *not* unique.  
+`-p` | Report progress during scan of the data.  If multiple input files are specified, the program reports processing of each one, and prints a "." for every 100,000 lines of the input file that are read.  If `-k` is also given, it reports each time it has determined that a certain column of data is *not* unique.
 
 If the program is run with no arguments, it prints the above
-information.  
+information.
 
 Heuristics
 ----------
