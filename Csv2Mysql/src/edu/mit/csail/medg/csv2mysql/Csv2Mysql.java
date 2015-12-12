@@ -414,6 +414,7 @@ public class Csv2Mysql {
 				for (int c = 0; c < line.length; c++) {
 					cols[c] = line[c].trim();
 				}
+				lineNo--;	// Don't count header line
 				treatedLineAsNames = true;
 			}	// end of iteration over elements of an entry				
 			treatLineAsNames = false;	// Possible only for first line
