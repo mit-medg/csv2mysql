@@ -126,22 +126,22 @@ possibility but use DateTime instead.  If every value in a field is `NULL` or a
 valid Date, Time, or DateTime, then the field will be declared with that
 data type.
 
-Dates are normally written as YYYY-MM-DD, 
+Dates are normally written as `YYYY-MM-DD`, 
 though two-digit years
-or dates using / instead of - as a separator are also allowed. 
-Times are written in 24-hour notation, as HH:MM:SS possibly followed by
+or dates using `/` instead of `-` as a separator are also allowed. 
+Times are written in 24-hour notation, as `HH:MM:SS` possibly followed by
 a decimal fractional second; the separators are either a colon, period or
 dash.  A DateTime is a date specification followed by either a space or
-the character T, followed by a time specification.  Invalid dates or
+the character `T`, followed by a time specification.  Invalid dates or
 times are not considered to be dates or times and will probably cause the
 field to be interpreted as a text field.  Timezones are not handled.
 
 As a special case, we also recognize dates and times in a format often
-used in exporting from Oracle, which is of the form 15-jan-2015
-14:30:25.  That may be followed by a space and a time zone specificiation
-(e.g., EST).  If a column consistently codes an Oracle style date, time or
+used in exporting from Oracle, which is of the form `15-jan-2015
+14:30:25`.  That may be followed by a space and a time zone specificiation
+(e.g., `EST`).  If a column consistently codes an Oracle style date, time or
 datetime/timestamp, we arrange to translate it on input into the SQL standard
-format, but ignore the time zone portion, if any.  
+format, but ignore the time zone portion, if any.
 
 ### Character
 
@@ -204,6 +204,19 @@ characters or 85 UTF8 characters. Indexing by very long text fields is
 probably not very valuable in any case, because they are unlikely to
 be used to look up data.
 
+#### Dates and Times
+
+It may be possible to write the same Date, Time, or Datetime in
+multiple ways.  For example, in a Datetime, the character separating
+the date and time components may be either a space or a `T`.
+Therefore, textual difference among values may not indicate a true
+difference in values. Therefore, we should check (as for integers and
+floats) whether all values are actuall distinct.  However, we do not
+do so, and expect that resulting errors (i.e., defining a `UNIQUE KEY`
+constraints on a temporal column that in fact has such non-unique
+values will be exceptionally rare, and will represent a failure of
+this heuristic.
+
 #### Limitations on seeking unique keys
 
 We are able to maintain efficiently a representation of many distinct
@@ -265,6 +278,3 @@ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
 ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-
