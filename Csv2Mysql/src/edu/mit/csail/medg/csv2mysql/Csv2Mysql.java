@@ -6,7 +6,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -173,8 +172,10 @@ public class Csv2Mysql {
 				printHelp();
 				printedHelp = true;
 			}
-			else if (arg.equals("-u")) 
+			else if (arg.equals("-u")) {
 				utf = true;
+				maxIndexLength = (int)textMaxU[0];
+			}
 			else if (arg.equals("-k"))
 				keys = true;
 			else if (arg.equals("-z"))
@@ -198,14 +199,15 @@ public class Csv2Mysql {
 				File inFile1 = new File(files.get(0));
 				File outFile1 = new File(inFile1.getParent(), outFileName);
 				fw = new FileWriter(outFile1);
-				fw.write("-- csv2mysql with arguments: " + Arrays.toString(args) + "\n\n");
-				fw.write("warnings\n");
+				fw.write("-- csv2mysql with arguments:");
+				for (String a: args) fw.write("\n--   " + a);
+				fw.write("\n\nwarnings\n\n");
 			} catch (IOException e) {
 				System.err.println("Could not create output file.");
 				e.printStackTrace();
 				System.exit(1);
 			}
-			long startTime = System.nanoTime();
+			long startTime = System.currentTimeMillis();
 			for (String inFile: files)
 				try {
 					processFile(inFile);
@@ -220,7 +222,7 @@ public class Csv2Mysql {
 				e.printStackTrace();
 				System.exit(2);
 			}
-			if (progress) System.out.println("Completed " + files.size() + " files in " + toTime(System.nanoTime() - startTime));
+			if (progress) System.out.println("Completed " + files.size() + " files in " + toTime(System.currentTimeMillis() - startTime));
 		}
 	}
 
@@ -286,7 +288,7 @@ public class Csv2Mysql {
 		boolean triedBigInt = false;
 
 		int lineNo = 0;
-		long startTime = System.nanoTime();
+		long startTime = System.currentTimeMillis();
 		/* We keep track for each column of the following:
 		 * Are all elements parsable as integers? Min and Max values
 		 * As floats? Min and Max values
@@ -361,22 +363,34 @@ public class Csv2Mysql {
 							}
 							HashSet<String> s = vals.get(c);
 							if (s != null) {
-								if (!s.contains(v)) 
+								if (v.length() > maxIndexLength) {
+									vals.set(c, null);
+									if (progress) {
+										if (printCol > 0) System.out.println("");
+										System.out.println("Col " + c + " (" + cols[c] + ") is too long for unique key (" + v.length() + ").");
+										printCol = 0;
+									}
+								}
+								else if (!s.contains(v)) {
 									s.add(v);
+									if (s.size() > maxVals) {
+										vals.set(c,  null);
+										if (progress) {
+											if (printCol > 0) System.out.println("");
+											System.out.println("Col " + c + " (" + cols[c] + ") has > " + maxVals 
+													+ " distinct string values.");
+											System.out.println((ivals.get(c) == null) 
+													? "  ... it will not be considered for a UNIQUE KEY."
+													: "  ... it will only be considered as a possible integer UNIQUE KEY.");
+											printCol = 0;
+										}
+									}
+								}
 								else {
 									vals.set(c, null);
 									if (progress) {
 										if (printCol > 0) System.out.println("");
 										System.out.println("Col " + c + " (" + cols[c] + ") is not unique.");
-										printCol = 0;
-									}
-								}
-								if (s.size() > maxVals) {
-									vals.set(c,  null);
-									if (progress) {
-										if (printCol > 0) System.out.println("");
-										System.out.println("Col " + c + " (" + cols[c] + ") has more unique string values than max: " + maxVals 
-												+ ".\n We stop examining this column for unique keys as other than integers.");
 										printCol = 0;
 									}
 								}
@@ -407,7 +421,9 @@ public class Csv2Mysql {
 							if (canBeDouble[c] >= 0)
 								canBeDouble[c] = (floatType == FLOAT || floatType == DOUBLE || iv != null) ? 1 : -1; 
 						}
-						if (v.length() > colLengths[c]) colLengths[c] = v.length();
+						if (v.length() > colLengths[c]) {
+							colLengths[c] = v.length();
+						}
 					}
 				}
 			} else {
@@ -545,8 +561,7 @@ public class Csv2Mysql {
 		
 		fw.write(sb.toString());
 		if (progress) {
-			System.out.println(inFile + ": " + ((treatedLineAsNames) ? lineNo - 1 : lineNo) + " entries");
-			System.out.println(" ... " + toTime(System.nanoTime() - startTime));
+			System.out.println(inFile + ": " + lineNo + " entries; " + toTime(System.currentTimeMillis() - startTime));
 		}
 	}
 	
@@ -851,14 +866,18 @@ public class Csv2Mysql {
 	
 	static final String[] textTypes = {"VARCHAR(255)", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"};
 	// Which of the following limits apply depends on whether we use UTF8 or LATIN1 encoding:
-	static final long[] textMaxU = {84, 84, 21844, 5592402, 1431655765};
+	static final long[] textMaxU = {84, 84, 21845, 5592405, 1431655765};
 	static final long[] textMax = {255, 255, 65535, 16777215, 4294967295L};
+	// Although the actual maximum length of a text index is 767, we limit ourselves to
+	// text fields that can fit in a VARCHAR(255), 
+	static int maxIndexLength = (int)textMax[0];
 	
 	/** Determines the smallest text datatype that will hold strings of length len. If utf, then the limits are smaller
-	 * because utf8 characters require more bytes to represent. 
+	 * because utf8 characters require more bytes to represent. Note that TINYTEXT and TEXT are never chosen because
+	 * of their functional equivalence to VARCHAR(255) and VARCHAR(21845).  There is a limitation of VARCHAR due to
 	 * @param len maximum length of relevant character strings
 	 * @param utf whether the representation will be UTF8
-	 * @return the smalled text type that is large enough
+	 * @return the smallest text type that is large enough
 	 */
 	static String whichText(long len, boolean utf) {
 		long[] limits = textMax;
@@ -872,16 +891,16 @@ public class Csv2Mysql {
 	static final long hrPerDay = 24;
 	static final long minPerHr = 60;
 	static final long secPerMin = 60;
-	static final long nsPerSec = 1000000000;
+	static final long msPerSec = 1000;
 
 	/** A convenience function to turn a number of elapsed nanoseconds into a human understandable string
 	 * showing how many days, hours, minutes and seconds the input represents
-	 * @param ns number of nanoseconds
+	 * @param ms number of milliseconds
 	 * @return the String that shows its interpretation
 	 */
-	static String toTime(long ns) {
-		long sec = ns/nsPerSec;
-//		System.out.println(ns + ":" + sec + " sec");
+	static String toTime(long ms) {
+		long sec = ms/msPerSec;
+//		System.out.println(ms + ":" + sec + " sec");
 		long min = sec/secPerMin; sec = sec % secPerMin;
 //		System.out.println(sec + ":" + min + "min");
 		long hr = min/minPerHr; min = min % minPerHr;

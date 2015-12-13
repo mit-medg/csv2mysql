@@ -1,0 +1,22 @@
+Design issues:
+
+1. Mysql has various limits on the total length of rows, the lengths of various text fields,
+and the length of prefixes of text fields that can be indexed. This leads to some tough
+design choices.
+
+	a. Although VARCHAR(255) and VARCHAR(65535) can store the same text as TINYTEXT and TEXT, 
+the former are stored within a row of data whereas the latter are stored separately and
+therefore do not contribute much to the (limited) maximum length of a row, which is 64KB.
+Thus, it is probably advantageous to store text data larger than 255 bytes (or 85 if UTF8)
+as TEXT.  However, TEXT fields may only be indexed on a prefix of their values, which
+complicates the creation of UNIQUE KEYs.
+
+	b. Because of a limit of 767 characters for indexes, it is unclear how to heuristically
+determine whether a field, even if it contains all distinct entries, should be indexed. If
+we limit our test for distinctness to only the first 767 characters, then the key will not
+truly be unique. 
+
+	c. I will simply disallow UNIQUE KEY indexing on text columns whose longest entry
+is > 255 or 85 (if UTF8).  Most longer fields are notes of some kind, in which case even
+if each one is unique, it is not clear that indexing them is meaningful.  This limit will
+permit indexing on the entire VARCHAR(255) field, avoiding the inconsistency noted in b.
