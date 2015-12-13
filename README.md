@@ -115,7 +115,7 @@ Note that an integer can also appear in a floating-point field, but
 will be treated as floating-point if not all values in that field are
 integers.  If all the values in a field fit within a `FLOAT`, that type
 will be selected; otherwise, `DOUBLE`.  In principle, we could also
-support larger `DECIMAL` fields, but do not do so.  
+support larger `DECIMAL` fields, but do not do so.
 
 ### Date, Time and DateTime
 
@@ -165,31 +165,62 @@ in the table definition.
 
 ### Unique Keys
 
-If requested by `-k`, we test to see whether every value (except `NULL`) in a
-column is distinct.  If so, we create a `UNIQUE KEY` constraint for that
-column. Except for numeric types, distinctness is determined by
-textual identity.  This may not be correct for dates and times, whose
-syntax allows for some variability among equivalent values.
+The options `-k`, `-f`, and `-m` control heuristics for recognizing
+`UNIQUE KEY` constraints. These define indexes that make data
+retrieval efficient.  MySQL allows multiple `NULL` values in fields
+with unique keys, which is different from some other
+databases. `UNIQUE KEY` constraints are created (if `-k` is specified) 
+for any column in which each non-`NULL` value is distinct from all
+other values in that field.  Distinctness varies somewhat depending on
+the type of the field.
+
+#### Integers
 
 If a column has all integer values, we test for distinctness by
-actually converting each value integers. This is because although
+actually converting each value to integers. This is because although
 `001` and `1` are distinct as strings, they are identical as
-integers.  With the option `-f`, we treat floating-point values
-similarly; `3` and `3.0` are the same floating-point value. Note that
-with the `-z` option, fields that might contain integers but with
-leading zeros will be considered as strings, in which case `001` and
-`1` would be distinct.
+integers. (But see the `-z` option.)
+
+#### Floats
+
+Fields whose values are all `FLOAT` or `DOUBLE` are considered for a
+`UNIQUE KEY` only if the `-f` option is given, because in ordinary
+usage one may not find all distinct values of such fields
+meaningful. We collect all the string representations of a floating
+point column and determine that no unique key can exist if these are
+not all distinct. In addition, we then convert each value to a Java
+`Double` to test if the values are truly distinct, because, for
+instance, `3` and `3.0` are the same floating-point value even though
+they are textually distinct.
+
+#### Text
+
+MySQL (as of version 5.7) is able to index only the first 767 bytes of
+a text field. That limit would make it hard to consider distinctness
+of longer strings.  In fact, we limit recognition of `UNIQUE KEY`
+constraints on text fields to those that can be encoded in a
+`VARCHAR(255)` column, which can hold a maximum of 255 ASCII
+characters or 85 UTF8 characters. Indexing by very long text fields is
+probably not very valuable in any case, because they are unlikely to
+be used to look up data.
+
+#### Limitations on seeking unique keys
 
 We are able to maintain efficiently a representation of many distinct
-integer values if they are dense enough to allow us to represent them as
-a tree of ranges, which can be merged when they meet.  This is often the
-case for identifiers or serial numbers.  Because other data types are
-not "dense" in this sense, we must actually keep all distinct values in
-order to find a non-unique one.  This explodes memory for very large
-tables, so we limit to a maximum number of distinct values for each
-column (see `-m` \[default 1M\]). Because the program stops looking for
-duplicates after that limit, it cannot determine whether a column can
-have a `UNIQUE KEY`, so it assumes not. 
+integer values if they are dense enough to allow us to represent them
+as a tree of ranges, which can be merged when they meet.  This is
+often the case for identifiers or serial numbers.  Because other data
+types are not "dense" in this sense, we must actually keep all
+distinct values in order to be able to recognize a non-unique one. 
+This explodes memory for very large tables, so we limit to a maximum
+number of distinct values for each column (see `-m`
+\[default 1M\]). Because the program stops looking for duplicates
+after that limit (except for integers), it cannot determine whether a
+column can have a `UNIQUE KEY`, so it assumes not.
+
+If very large limits are given on `-m` or if a very large number of
+sparse integer values are found, it may be necessary to increase
+memory limits on the Java `jvm` using the `-Xms` and `-Xmx` options.
 
 Caveats
 -------
@@ -197,31 +228,18 @@ Caveats
 The above heuristics may not create the intended data types.  For example,
 some coding systems do distinguish between codes "001" and "01", but if
 every code in a column can be interpreted as an integer, this program
-will do so unless `-z` is specified, and thus lose these distinctions.  
+will do so unless `-z` is specified, and thus lose these distinctions.
 
 The program also cannot determine which among the `UNIQUE KEY`s should
 be a table's `PRIMARY KEY`, or whether compound keys need to be defined
 to reflect the semantics and/or access patterns to the data.  It is also
-unable to identify `FOREIGN KEY` constraints.  
+unable to identify `FOREIGN KEY` constraints.
 
-Using the -k option asks the program to retain all values in each column
-so that it can check if those values are unique.  Although it stops
-doing so for any column as soon as the first duplicate is found, the
-memory demands for a very large table with one or more unique columns
-can be huge.  Therefore, in such cases it is necessary to start the Java
-Virtual Machine with non-default memory parameters that can accommodate
-the large hash tables and range trees that hold these values. Obviously, this must be
-run on a system with enough memory.  For example, on one very large
-table containing about 250M rows, the following worked (though these `jvm` arguments may
-have provided more memory than needed):  
-
-    java -Xms5128m -Xmx10512m -jar ~/bin/csv2mysql.jar -k -u -m 250000000 test.csv
-
-Even with extra memory, performance on very large data sets becomes
-abysmal.  Thus, rather than using the `-k` option, it may be more
+Even with extra memory, seeking unique keys on very large data sets becomes
+quite slow.  Thus, rather than using the `-k` option, it may be more
 sensible to run without it, load the data into the database system, and
 then check to see whether all values are distinct using its facilities. 
-If so, `ALTER TABLE` can create the `UNIQUE KEY` constraints.  
+If so, `ALTER TABLE` can create the `UNIQUE KEY` constraints.
 
 MIT License
 -----------
@@ -239,9 +257,14 @@ the following conditions:
 The above copyright notice and this permission notice shall be included
 in all copies or substantial portions of the Software.  
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 
 
