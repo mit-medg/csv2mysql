@@ -256,8 +256,10 @@ public class Csv2Mysql {
 		 * Although in principle we could try to keep track of the maximum precision and range of floating point numbers
 		 * so we can distinguish between what should be represented as FLOAT or DOUBLE, we simply choose DOUBLE for all
 		 * floating point.  We ignore the possibility of boolean, bit-string, etc., values.
-		 * We accept datetime in the standard Oracle format (e.g., "09-sep-2012 15:00:00 US/Eastern"), but we ignore
-		 * the timezone part; importing does, however, generate warnings about "Truncated incorrect datetime value".
+		 * Dates are expected to be in the common SQL format YYY-MM-DD, times in HH:MI:SS, and datetime as a date
+		 * followed by a time, separated by either a space or the letter T. We also accept datetime in the standard Oracle
+		 * format (e.g., "09-sep-2012 15:00:00 US/Eastern"), but we ignore the timezone part; importing does, however, 
+		 * generate warnings about "Truncated incorrect datetime value".
 		 * 
 		 * For each column, we keep track of whether we have evidence that its values can be of each possible type.
 		 * Values are 0 = unknown, 1 = possible, -1 = impossible (some value cannot be that type)
@@ -725,12 +727,7 @@ public class Csv2Mysql {
 		if (!m.matches()) return null;
 		return new BigInteger(s);
 	}
-	
-//	static BigInteger boo = null;
-//	static BigInteger foo = interpretAsBigInt("32432947598375923874934742937");
-			//new BigInteger("32432947598375923874x934742937");
-	
-	
+		
 	static Pattern intPat = Pattern.compile("(\\+|-)?\\d+");
 	static final Pattern intPatNZ = Pattern.compile("(\\+|-)?(0|[1-9]\\d*)");	// intPat that disallows leading 0
 	static final Pattern floatPat = Pattern.compile("(\\+|-)?(\\d+(\\.\\d*)|\\d*\\.\\d+)(E(\\+|-)?\\d+)?", Pattern.CASE_INSENSITIVE);

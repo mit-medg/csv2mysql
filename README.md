@@ -129,7 +129,7 @@ data type.
 Dates are normally written as `YYYY-MM-DD`, 
 though two-digit years
 or dates using `/` instead of `-` as a separator are also allowed. 
-Times are written in 24-hour notation, as `HH:MM:SS` possibly followed by
+Times are written in 24-hour notation, as `HH:MI:SS` possibly followed by
 a decimal fractional second; the separators are either a colon, period or
 dash.  A DateTime is a date specification followed by either a space or
 the character `T`, followed by a time specification.  Invalid dates or
@@ -211,7 +211,7 @@ multiple ways.  For example, in a Datetime, the character separating
 the date and time components may be either a space or a `T`.
 Therefore, textual difference among values may not indicate a true
 difference in values. Therefore, we should check (as for integers and
-floats) whether all values are actuall distinct.  However, we do not
+floats) whether all values are actually distinct.  However, we do not
 do so, and expect that resulting errors (i.e., defining a `UNIQUE KEY`
 constraints on a temporal column that in fact has such non-unique
 values will be exceptionally rare, and will represent a failure of

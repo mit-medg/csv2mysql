@@ -59,3 +59,4 @@ target/
 # OSX .DS_Store
 .DS_Store
 /bin/
+Csv2Mysql/doc/.DS_Store
