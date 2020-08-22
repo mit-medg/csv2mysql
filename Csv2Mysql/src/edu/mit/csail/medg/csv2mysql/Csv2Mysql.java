@@ -26,18 +26,18 @@ import com.opencsv.CSVReader;
       <tbody>
         <tr>
           <td valign="top" width="20" align="left"><tt>-c</tt></td>
-          <td valign="top">Next argument is the <i>comma</i> character
-            [default <tt>,</tt>] </td>
+          <td valign="top">Next argument is the <i>comma</i> character, i.e., field terminator
+            [default <tt>,</tt>]; specify as <tt>''</tt> to allow none</td>
         </tr>
         <tr>
           <td valign="top" width="20"><tt>-q</tt></td>
-          <td valign="top">Next argument is the <i>quote</i> character
-            [default <tt>"</tt>]</td>
+          <td valign="top">Next argument is the <i>quote</i> character, i.e., optional enclosing char
+            [default <tt>"</tt>]; specify as <tt>''</tt> to allow none</td>
         </tr>
         <tr>
           <td valign="top" width="20"><tt>-e</tt></td>
-          <td valign="top">Next argument is the <i>escape</i> character
-            [default <tt>\</tt>]<br>
+          <td valign="top">Next argument is the <i>escape</i> character, i.e., to make next char not special
+            [default <tt>\</tt>]; specify as <tt>''</tt> to allow none<br>
           </td>
         </tr>
         <tr>
@@ -255,7 +255,16 @@ public class Csv2Mysql {
 		 * representing NULL), to keep track of whether to permit null values in that column.
 		 * Although in principle we could try to keep track of the maximum precision and range of floating point numbers
 		 * so we can distinguish between what should be represented as FLOAT or DOUBLE, we simply choose DOUBLE for all
-		 * floating point.  We ignore the possibility of boolean, bit-string, etc., values.
+		 * floating point.  We ignore the possibility of bit-string, etc., values. Integers are represented by BOOLEAN
+		 * (if all values are 0 or 1), TINYINT, SMALLINT, MEDIUMINT, INT, BIGINT, DECIMAL, depending on their range and
+		 * are declared UNSIGNED if all values are non-negative. BOOLEANs can't be UNSIGNED, though in current MySQL,
+		 * they are actually treated identically to TINYINT.
+		 *  We could consider adding another parameter to suppress use of UNSIGNED integer fields. These do save
+		 *  space when all integers in a field are non-negative because they effectively double the range of 
+		 *  representable integers, so they can use a smaller data type.  However, reading these may be awkward;
+		 *  for example, R issues warnings about converting unsigned to signed integers.  This option is not 
+		 *  currently implemented. 
+		 * 
 		 * Dates are expected to be in the common SQL format YYY-MM-DD, times in HH:MI:SS, and datetime as a date
 		 * followed by a time, separated by either a space or the letter T. We also accept datetime in the standard Oracle
 		 * format (e.g., "09-sep-2012 15:00:00 US/Eastern"), but we ignore the timezone part; importing does, however, 
@@ -263,7 +272,7 @@ public class Csv2Mysql {
 		 * 
 		 * For each column, we keep track of whether we have evidence that its values can be of each possible type.
 		 * Values are 0 = unknown, 1 = possible, -1 = impossible (some value cannot be that type)
-		 * We testing a new value unless the column's interpretation is already impossible. If it matches, we set 1,
+		 * We test a new value unless the column's interpretation is already impossible. If it matches, we set 1,
 		 * but if not, -1.
 		 * 
 		 * If unique keys are to be created, we keep track of whether all the values in a column are unique.
@@ -275,7 +284,14 @@ public class Csv2Mysql {
 		 * The problem with this method is that at the time we check for uniqueness, we do not yet know the eventual
 		 * data type of the column, so the uniqueness is in terms of string representation.  However, if the column
 		 * turns out to be INT, say, then multiple distinct strings may represent the same value, e.g., "01" and "1".
-		 * Therefore, we should do a further integrity check after the column data type has been determined. 
+		 * Therefore, we also maintain a RangeTree to keep track of distinct values of integer data, which is also
+		 * much more efficient.
+		 * 
+		 *  We could consider adding another parameter to suppress use of UNSIGNED integer fields. These do save
+		 *  space when all integers in a field are positive because they effectively double the range of 
+		 *  representable integers, so they can use a smaller data type.  However, reading these may be awkward;
+		 *  for example, R issues warnings about converting unsigned to signed integers.  This option is not 
+		 *  currently implemented. 
 		 */
 		int[] canBeInt = null, canBeFloat = null, canBeDouble = null, canBeDate = null, canBeTime = null, 
 				canBeDateTime = null, canBeOracleDateTime = null, canBeOracleDate = null;
@@ -468,7 +484,7 @@ public class Csv2Mysql {
 				for (int i = 0; i < numberTops.length; i++) {
 					if (maxInts[c].compareTo(numberTops[i]) <= 0) {
 						sb.append(" " + numberTypes[i]);
-						if (numberTops == numberMaxU) sb.append(" UNSIGNED");
+						if (numberTops == numberMaxU && numberTypes[i] != "BOOLEAN") sb.append(" UNSIGNED");
 						break;
 					}
 				}
@@ -536,11 +552,12 @@ public class Csv2Mysql {
 			sb.append("\n  )");
 		}
 		else sb.append(")");
-		if (utf) sb.append("\n  CHARACTER SET = UTF8");
+		if (utf) sb.append("\n  CHARACTER SET = UTF8MB4");
 		sb.append(";\n\n");
 		sb.append("LOAD DATA LOCAL INFILE \'" + inf.getName() + "\' INTO TABLE " + tableName + "\n");
-		sb.append("   FIELDS TERMINATED BY \'" + quoteIfNeeded(commaC) + "\' ESCAPED BY \'" + quoteIfNeeded(escapeC) + "\'");
-		sb.append(" OPTIONALLY ENCLOSED BY \'" + quoteIfNeeded(quoteC) + "\' \n");
+		sb.append("   FIELDS TERMINATED BY \'" + quoteIfNeeded(commaC) + "\'" +
+				" ESCAPED BY \'" + quoteIfNeeded(escapeC) + "\'" +
+				" OPTIONALLY ENCLOSED BY \'" + quoteIfNeeded(quoteC) + "\'\n");
 		sb.append("   LINES TERMINATED BY \'\\n\'\n");
 		if (treatedLineAsNames) sb.append("   IGNORE 1 LINES\n");
 		sep = "   (";
@@ -645,9 +662,9 @@ public class Csv2Mysql {
 		 "The following options may be given on the command line:",
 		 "  -g No column names are given in the first line of the csv; use generated names",
 		 "  -o File name to hold output; default is mysql_load.sql",
-		 "  -c comma, given as next argument",
-		 "  -q quote, given as next argument",
-		 "  -e escape, given as next argument",
+		 "  -c comma, given as next argument [default ',']",
+		 "  -q quote, given as next argument [default '\"']",
+		 "  -e escape, given as next argument [default '\\']",
 		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
 		 "  -k generate UNIQUE KEY constraints for columns with unique values (except FLOAT or DOUBLE)",
 		 "  -f if -k, tries to generate UNIQUE KEYs for FLOAT or DOUBLE as well",
@@ -658,19 +675,22 @@ public class Csv2Mysql {
 	
 	/*
 	 * To deal with MySql BIGINT, we have to accept numbers that are larger than Java's int, hence the
-	 * complexity here of using BigInteger. In the extreme of very large numbers, we can use MySql's
+	 * complexity here of using BigInteger. In the extreme of very large numbers, we could use MySql's
 	 * DECIMAL (with no fractions) to represent them.
+	 * 
+	 * Although in current MySQL, BOOLEAN is translated to TINYINT, for future-proofing, we declare
+	 * fields as BOOLEAN if they contain only values 0 and 1.
 	 */
 	static final String[] numberTypes = 
-		{"TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL"};
+		{"BOOLEAN", "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL"};
 	static final String[] numberMaxs = 
-		{"127", "32767", "8388607", "2147483647", "9223372036854775807",
+		{"1", "127", "32767", "8388607", "2147483647", "9223372036854775807",
 		"99999999999999999999999999999999999999999999999999999999999999999"};
 	static final String[] numberMaxUs = 
-		{"255", "65535", "16777215", "4294967295", "18446744073709551615",
+		{"1", "255", "65535", "16777215", "4294967295", "18446744073709551615",
 		"99999999999999999999999999999999999999999999999999999999999999999"};
 	static final String[] numberMins = 
-		{"-128", "-32768", "-8388608", "-2147483648", "-9223372036854775808",
+		{"0", "-128", "-32768", "-8388608", "-2147483648", "-9223372036854775808",
 		"-99999999999999999999999999999999999999999999999999999999999999999"};
 	
 	static final BigInteger[] numberMax = new BigInteger[numberTypes.length];
@@ -870,8 +890,10 @@ public class Csv2Mysql {
 	static int maxIndexLength = (int)textMax[0];
 	
 	/** Determines the smallest text datatype that will hold strings of length len. If utf, then the limits are smaller
-	 * because utf8 characters require more bytes to represent. Note that TINYTEXT and TEXT are never chosen because
-	 * of their functional equivalence to VARCHAR(255) and VARCHAR(21845).  There is a limitation of VARCHAR due to
+	 * because utf8 characters require more bytes to represent. Note that TINYTEXT is never chosen because
+	 * of its functional equivalence to VARCHAR(255).  The TEXT types are all stored in a record via pointers,
+	 * whereas VARCHAR is stored in-place, so I prefer VARCHAR for small fields but not large ones, because there
+	 * is a maximum record length 65,535 bytes, which is easy to overflow with large VARCHAR fields.
 	 * @param len maximum length of relevant character strings
 	 * @param utf whether the representation will be UTF8
 	 * @return the smallest text type that is large enough
