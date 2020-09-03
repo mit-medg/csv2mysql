@@ -27,11 +27,12 @@ The program is also able to read files that have been gzip'd, though
 MySQL is unable to LOAD DATA such files directly, so they will need to
 be unzipped in any case.
 
-This updated version of the program fixes a few bugs, allows gzip's
+This program is currently used with MySQL Server Community
+Edition 8.0.19, though it should work with earlier versions as well.
+The updated version fixes a few bugs, allows gzip's
 inputs, adds the ability to call a `UTF8` file `UTF8MB4`, which is due
 to become the standard meaning of `UTF8` in MySQL, though currently it
-means `UTF8MB3`. It is currently used with MySQL Server Community
-Edition 8.0.19, though it should work with earlier versions as well.
+means `UTF8MB3`.
 
 The output file is meant to be a first approximation to how the data
 in the `.csv` files should be loaded into the database. The program
