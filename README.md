@@ -21,7 +21,11 @@ whether the input files contain header lines, whether blank columns are
 to be treated as `NULL`, whether the text encoding is `UTF8`, and
 whether `UNIQUE KEY` constraints are to be sought. It is also possible
 to specify the format of the `.csv` file by giving the comma, quote and
-escape characters.  
+escape characters.
+
+The program is also able to read files that have been gzip'd, though
+MySQL is unable to LOAD DATA such files directly, so they will need to
+be unzipped in any case.
 
 This program is released under the MIT License (see below) and uses the
 **opencsv** package, documented at <http://opencsv.sourceforge.net>. 
@@ -46,6 +50,7 @@ Option  | Meaning
 `-g` | First line of input files does *not* contain column names; use generated ones
 `-b` | Empty columns are *not* treated as `NULL` values, but as themselves; `NULL``s` in MySQL are normally `\N` or `"\N"`
 `-u` | Text encoding is `UTF8`
+`--utf8mb4` | Text encoding is `UTF8MB4`
 `-z` | Integers whose first digit is 0 are treated as strings; distinguishes, e.g., `123` from `0123`
 `-k` | For each column, check if all the data values are distinct; create `UNIQUE KEY` constraints for those that are, except floating-point values; this is slow for very large data sets
 `-f` | if `-k`, also tries to find `UNIQUE KEY`s for floats
@@ -85,7 +90,7 @@ has multiple integer data types of different sizes:
 | `MEDIUMINT` | `8388607` | `-8388608` | `16777215` |
 | `INT` | `2147483647` | `-2147483648` | `4294967295` |
 | `BIGINT` | `9223372036854775807` | `-9223372036854775808` | `18446744073709551615` |
-| `DECIMAL` | `10^66 - 1`` (65 "9"'s)` | `-10^66 + 1` | `10^66 - 1` |
+| `DECIMAL` | `10^66 - 1` (65 "9"'s)` | `-10^66 + 1` | `10^66 - 1` |
 ---
 
 We choose the column data type that minimally fits the range of values
