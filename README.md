@@ -27,6 +27,23 @@ The program is also able to read files that have been gzip'd, though
 MySQL is unable to LOAD DATA such files directly, so they will need to
 be unzipped in any case.
 
+This updated version of the program fixes a few bugs, allows gzip's
+inputs, adds the ability to call a `UTF8` file `UTF8MB4`, which is due
+to become the standard meaning of `UTF8` in MySQL, though currently it
+means `UTF8MB3`. It is currently used with MySQL Server Community
+Edition 8.0.19, though it should work with earlier versions as well.
+
+The output file is meant to be a first approximation to how the data
+in the `.csv` files should be loaded into the database. The program
+cannot figure out what indexes should be defined on the various tables
+(except unique keys, with the `-k` option), and cannot guess foreign
+key relationships, which are all application-dependent. For very large
+tables, it may also be helpful to `PARTITION` them to improve
+performance, but this too is application-dependent. So one should
+expect to edit the resulting file to customize it to the application.
+Note also that current MySQL requires `--local-infile` to be specified
+for both the server and the client when loading the data.
+
 This program is released under the MIT License (see below) and uses the
 **opencsv** package, documented at <http://opencsv.sourceforge.net>. 
 Its code is included in the program.  
