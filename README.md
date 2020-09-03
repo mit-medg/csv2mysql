@@ -103,16 +103,19 @@ has multiple integer data types of different sizes:
 
 | MySQL Type | Maximum Signed Value | Minimum Signed Value | Maximum Unsigned Value |
 | --- | ---:| ---:| ---:|
+| `BOOLEAN` | `1` | `0` | |
 | `TINYINT` | `127` | `-128` | `255`  | 
 | `SMALLINT` | `32767` | `-32768` | `65535` |
 | `MEDIUMINT` | `8388607` | `-8388608` | `16777215` |
 | `INT` | `2147483647` | `-2147483648` | `4294967295` |
 | `BIGINT` | `9223372036854775807` | `-9223372036854775808` | `18446744073709551615` |
-| `DECIMAL` | `10^66 - 1` (65 "9"'s)` | `-10^66 + 1` | `10^66 - 1` |
+| `DECIMAL` | `10^66 - 1` (65 "9"s) | `-10^66 + 1` | `10^66 - 1` |
 ---
 
 We choose the column data type that minimally fits the range of values
-seen.  If they are all non-negative, we choose `UNSIGNED` types.
+seen.  If they are all non-negative, we choose `UNSIGNED`
+types. Currently, MySQL implements `BOOLEAN` as `TINYINT`, but we
+disinguish it for fields containing only `0` or `1` (or `NULL`).
 
 For some data, fields that include integers that begin with `0` are
 meant to be treated as code strings, not integers.  The `-z` switch
@@ -174,13 +177,14 @@ quotes but need not be, unless they contain characters (such as
 quotation marks) that can confuse the reader.  MySQL supports various
 lengths of character fields.  We use the following:  
 
-| MySQL Type | Maximum Length | Maximum Length if UTF8 |
-| --- | ---:| ---:|
-| `VARCHAR(255)` | `255` | `84` |
-| `TINYTEXT` (*not used* because it is equivalent to `VARCHAR(255)`) | `255` | `84` |
-| `TEXT` | `65535` | `21844` |
-| `MEDIUMTEXT` | `16777215` | `5592402` | 
-| `LONGTEXT` | `4294967295L` | `1431655765` |
+| MySQL Type | Maximum Length | Maximum Length if UTF8 | Maximum
+| Length if UTF8MB4 |
+| --- | ---:| ---:| ---:|
+| `VARCHAR(255)` | `255` | `84` | `63` |
+| `TINYTEXT` (*not used* because it is equivalent to `VARCHAR(255)`)  | `255` | `84` | `63` |
+| `TEXT` | `65535` | `21844` | `16383` |
+| `MEDIUMTEXT` | `16777215` | `5592402` | `4194303` |
+| `LONGTEXT` | `4294967295L` | `1431655765` | `1073741823` |
 
 We choose the field that is minimally able to store all values of a
 field.  For convenience, we also output the longest value as a comment
