@@ -1,9 +1,13 @@
 package edu.mit.csail.medg.csv2mysql;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.util.zip.GZIPInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -63,6 +67,11 @@ import com.opencsv.CSVReader;
           </td>
         </tr>
         <tr>
+          <td valign="top" width="20"><tt>--utf8mb4</tt></td>
+          <td valign="top">Text encoding is <tt>UTF8MB4</tt><br>
+          </td>
+        </tr>
+        <tr>
           <td valign="top" width="20"><tt>-z</tt></td>
           <td valign="top">integers whose first digit is 0 are taken to be strings<br>
           </td>
@@ -101,13 +110,18 @@ import com.opencsv.CSVReader;
     </table>
 
  * The program can be invoked in Unix-style systems (including Mac OS X, Linux) via a command such as
- * java -jar csv2mysql.jar *.csv
+ * 		java -jar csv2mysql.jar *.csv
+ * If the files given are gzip'd file (recognized by extensions .gz, .GZ, .z, .Z), this program can read them
+ * and determine the appropriate load scripts, except that MySQL has no self-contained way to LOAD DATA INFILE
+ * from zipped files. Thus, such statements would need to be manually adjusted and the files would need to be 
+ * unzipped to make loading possible.
  * 
  * We incorporate opencsv-3.3, slightly modified to remove its dependence on Apache StringUtils, to parse
  * the input csv files.
  * 
  * @author psz
  * April 18, 2015
+ * revised September 2, 2020
  */
 /*
  *  -g No column names are given in the first line of the csv; use generated names.
@@ -116,6 +130,7 @@ import com.opencsv.CSVReader;
  *  -q quote, given as next argument
  *  -e escape, given as next argument
  *  -u text encoding is UTF8
+ *  --utf8mb4 encoding
  *  -z integers whose first digit is 0 are taken to be strings
  *  -k try to create unique keys
  *  -f if -k, also try to create unique keys on floating-point
@@ -130,7 +145,7 @@ public class Csv2Mysql {
 	static char quoteC = CSVParser.DEFAULT_QUOTE_CHARACTER;
 	static char escapeC = CSVParser.DEFAULT_ESCAPE_CHARACTER;
 	static boolean namesOnLine1 = true;
-	static boolean utf = false;
+	static String utf = "";
 	static boolean keys = false;
 	static int maxVals = 1000000;
 	static boolean blanksAreNull = true;
@@ -173,8 +188,11 @@ public class Csv2Mysql {
 				printedHelp = true;
 			}
 			else if (arg.equals("-u")) {
-				utf = true;
+				utf = "UTF8";
 				maxIndexLength = (int)textMaxU[0];
+			}
+			else if (arg.equalsIgnoreCase("--utf8mb4")) {
+				utf = "UTF8MB4";
 			}
 			else if (arg.equals("-k"))
 				keys = true;
@@ -184,7 +202,7 @@ public class Csv2Mysql {
 				floatUnique = true;
 			else if (arg.equals("-m") && a+1 < args.length) {
 				a++;
-				maxVals = new Integer(args[a]);
+				maxVals = Integer.valueOf(args[a]);
 			}
 			else if (arg.equals("-b"))
 				blanksAreNull = false;
@@ -196,9 +214,11 @@ public class Csv2Mysql {
 			if (!printedHelp) printHelp();
 		} else {
 			try {
-				File inFile1 = new File(files.get(0));
-				File outFile1 = new File(inFile1.getParent(), outFileName);
-				fw = new FileWriter(outFile1);
+				// Output file should go to working directory, not that of inputs.
+//				File inFile1 = new File(files.get(0));
+//				File outFile1 = new File(inFile1.getParent(), outFileName);
+//				fw = new FileWriter(outFile1);
+				fw = new FileWriter(new File(outFileName));
 				fw.write("-- csv2mysql with arguments:");
 				for (String a: args) fw.write("\n--   " + a);
 				fw.write("\n\nwarnings\n\n");
@@ -236,8 +256,16 @@ public class Csv2Mysql {
 		CSVReader r = null;
 		File inf = new File(inFile);
 		try {
-			FileReader fr = new FileReader(inf);
-			r = new CSVReader(fr, commaC, quoteC, escapeC);
+			if (!isGzipFileName(inFile)) {
+				FileReader fr = new FileReader(inf);
+				r = new CSVReader(fr, commaC, quoteC, escapeC);
+			}
+			else {
+				System.out.println("Gzip file.");
+				BufferedReader br = new BufferedReader(new InputStreamReader(
+						new GZIPInputStream(new FileInputStream(inFile))));
+				r = new CSVReader(br, commaC, quoteC, escapeC);
+			}
 		} catch (FileNotFoundException e) {
 			System.err.println("Could not open input file " + inFile);
 //			e.printStackTrace();
@@ -259,16 +287,24 @@ public class Csv2Mysql {
 		 * (if all values are 0 or 1), TINYINT, SMALLINT, MEDIUMINT, INT, BIGINT, DECIMAL, depending on their range and
 		 * are declared UNSIGNED if all values are non-negative. BOOLEANs can't be UNSIGNED, though in current MySQL,
 		 * they are actually treated identically to TINYINT.
-		 *  We could consider adding another parameter to suppress use of UNSIGNED integer fields. These do save
-		 *  space when all integers in a field are non-negative because they effectively double the range of 
-		 *  representable integers, so they can use a smaller data type.  However, reading these may be awkward;
-		 *  for example, R issues warnings about converting unsigned to signed integers.  This option is not 
-		 *  currently implemented. 
+		 * We could consider adding another parameter to suppress use of UNSIGNED integer fields. These do save
+		 * space when all integers in a field are non-negative because they effectively double the range of 
+		 * representable integers, so they can use a smaller data type.  However, reading these may be awkward;
+		 * for example, R issues warnings about converting unsigned to signed integers.  This option is not 
+		 * currently implemented. 
 		 * 
 		 * Dates are expected to be in the common SQL format YYY-MM-DD, times in HH:MI:SS, and datetime as a date
 		 * followed by a time, separated by either a space or the letter T. We also accept datetime in the standard Oracle
 		 * format (e.g., "09-sep-2012 15:00:00 US/Eastern"), but we ignore the timezone part; importing does, however, 
 		 * generate warnings about "Truncated incorrect datetime value".
+		 * 
+		 * Text fields can be VARCHAR(255), TINYTEXT, TEXT, MEDIUMTEXT, or LONGTEXT. These are all variable-length
+		 * fields, and we trim space characters off both ends of a value before calculating the needed length of a field,
+		 * and also when data are imported.  The number of characters that can be stored in such a field depend on the
+		 * encoding.  For UTF8, it is shorter by ~3x than for single-byte encodings.  In an earlier implementation, we
+		 * also supported short fixed-width CHAR(...) fields if every input in a text field was of the same length. We
+		 * eliminated this because some input files include spaces before/after a value, and it's not helpful to keep
+		 * these. 
 		 * 
 		 * For each column, we keep track of whether we have evidence that its values can be of each possible type.
 		 * Values are 0 = unknown, 1 = possible, -1 = impossible (some value cannot be that type)
@@ -287,11 +323,6 @@ public class Csv2Mysql {
 		 * Therefore, we also maintain a RangeTree to keep track of distinct values of integer data, which is also
 		 * much more efficient.
 		 * 
-		 *  We could consider adding another parameter to suppress use of UNSIGNED integer fields. These do save
-		 *  space when all integers in a field are positive because they effectively double the range of 
-		 *  representable integers, so they can use a smaller data type.  However, reading these may be awkward;
-		 *  for example, R issues warnings about converting unsigned to signed integers.  This option is not 
-		 *  currently implemented. 
 		 */
 		int[] canBeInt = null, canBeFloat = null, canBeDouble = null, canBeDate = null, canBeTime = null, 
 				canBeDateTime = null, canBeOracleDateTime = null, canBeOracleDate = null;
@@ -397,8 +428,8 @@ public class Csv2Mysql {
 											if (printCol > 0) System.out.println("");
 											System.out.println("Col " + c + " (" + cols[c] + ") has > " + maxVals 
 													+ " distinct string values.");
-											System.out.println((ivals.get(c) == null) 
-													? "  ... it will not be considered for a UNIQUE KEY."
+											System.out.println((ivals.get(c) == null || canBeInt[c] < 0) 
+													? "  ... it will not be considered as being a UNIQUE KEY."
 													: "  ... it will only be considered as a possible integer UNIQUE KEY.");
 											printCol = 0;
 										}
@@ -490,7 +521,7 @@ public class Csv2Mysql {
 				}
 			}
 			else if (canBeFloat[c] > 0) {
-				ivals.set(c, null);
+				if (keys) ivals.set(c, null);
 				if (keys && vals.get(c) != null) {
 					if (!floatUnique) vals.set(c, null);
 					else if (!areUniqueDoubles(vals.get(c))) {
@@ -501,7 +532,7 @@ public class Csv2Mysql {
 				sb.append(" FLOAT");
 			}
 			else if (canBeDouble[c] > 0) {
-				ivals.set(c, null);
+				if (keys) ivals.set(c, null);
 				if (keys && vals.get(c) != null) {
 					if (!floatUnique) vals.set(c, null);
 					else if (!areUniqueDoubles(vals.get(c))) {
@@ -512,19 +543,19 @@ public class Csv2Mysql {
 				sb.append(" DOUBLE");
 			}
 			else if (canBeDateTime[c] > 0 || canBeOracleDateTime[c] > 0) {
-				ivals.set(c, null);
+				if (keys) ivals.set(c, null);
 				sb.append(" DATETIME");
 			}
 			else if (canBeDate[c] > 0 || canBeOracleDate[c] > 0) {
-				ivals.set(c, null);
+				if (keys) ivals.set(c, null);
 				sb.append(" DATE");
 			}
 			else if (canBeTime[c] > 0) {
-				ivals.set(c, null);
+				if (keys) ivals.set(c, null);
 				sb.append(" TIME");
 			}
 			else {	// Chars
-				ivals.set(c, null);
+				if (keys) ivals.set(c, null);
 				String textType = whichText(colLengths[c], utf);
 				if (textType==null) textType = "LONGTEXT";	// should never happen
 				sb.append(" " + textType);
@@ -552,9 +583,10 @@ public class Csv2Mysql {
 			sb.append("\n  )");
 		}
 		else sb.append(")");
-		if (utf) sb.append("\n  CHARACTER SET = UTF8MB4");
+		if (!utf.equals("")) sb.append("\n  CHARACTER SET = " + utf);
 		sb.append(";\n\n");
-		sb.append("LOAD DATA LOCAL INFILE \'" + inf.getName() + "\' INTO TABLE " + tableName + "\n");
+		sb.append("LOAD DATA LOCAL INFILE \'" + getRootFilenameFromGzipFilename(inf.getName()) + 
+				"\' INTO TABLE " + tableName + "\n");
 		sb.append("   FIELDS TERMINATED BY \'" + quoteIfNeeded(commaC) + "\'" +
 				" ESCAPED BY \'" + quoteIfNeeded(escapeC) + "\'" +
 				" OPTIONALLY ENCLOSED BY \'" + quoteIfNeeded(quoteC) + "\'\n");
@@ -573,6 +605,7 @@ public class Csv2Mysql {
 			String expr = "@" + cols[c];
 			if (canBeOracleDateTime[c] > 0) expr = "STR_TO_DATE(" + expr + ",\"%d-%b-%Y %H:%i:%s\")";
 			else if (canBeOracleDate[c] > 0) expr = "STR_TO_DATE(" + expr + ",\"%d-%b-%Y\")";
+			else expr = "trim(" + expr + ")";
 			if (nullable[c]) expr = "IF(@" + cols[c] + "=\'\', NULL, " + expr + ")";
 			sb.append(expr);
 		}
@@ -597,6 +630,28 @@ public class Csv2Mysql {
 		return ans;
 	}
 
+	/**
+	 * This is a heuristic check to see whether the given filename is that of a gzip file.
+	 * We assume that gzip files end in .Z, .z, .GZ or .gz 
+	 * 
+	 * @param filename
+	 * @return boolean whether filename looks like the name of a gzip file 
+	 */
+	private static boolean isGzipFileName(String filename) {
+		int dotPosn = filename.lastIndexOf('.');
+		if (dotPosn < 0) return false;
+		String extn = filename.substring(dotPosn + 1);
+		if (extn.equalsIgnoreCase("Z") || extn.equalsIgnoreCase("gz")) return true;
+		return false;
+	}
+	
+	private static String getRootFilenameFromGzipFilename(String filename) {
+		if (isGzipFileName(filename)) {
+			int dotPosn = filename.lastIndexOf('.');
+			return filename.substring(0,  dotPosn);
+		}
+		return filename;
+	}
 	/** 		
 	  This is a heuristic check to make sure that the first line of the .csv file, if 
 		 it's said to contain the names of columns, has reasonable column names.
@@ -666,6 +721,7 @@ public class Csv2Mysql {
 		 "  -q quote, given as next argument [default '\"']",
 		 "  -e escape, given as next argument [default '\\']",
 		 "  -u text encoding is UTF8; otherwise unspecified, but we assume single-byte characters",
+		 "  --utf8mb4 encoding, 4-byte UFT8 encoding",
 		 "  -k generate UNIQUE KEY constraints for columns with unique values (except FLOAT or DOUBLE)",
 		 "  -f if -k, tries to generate UNIQUE KEYs for FLOAT or DOUBLE as well",
 		 "  -z integers whose first digit is 0 are taken to be strings",
@@ -729,7 +785,7 @@ public class Csv2Mysql {
 	static int floatKind(String s) {
 		Matcher m = floatPat.matcher(s);
 		if (!m.matches()) return NOTFLOAT;
-		Double d = new Double(s);
+		Double d = Double.valueOf(s);
 		if (d==0.0d) return FLOAT;
 		if (d <= floatMinNeg && d >= floatMaxNeg) return FLOAT;
 		if (d >= floatMinPos && d <= floatMaxPos) return FLOAT;
@@ -777,9 +833,9 @@ public class Csv2Mysql {
 		Matcher m = datePat.matcher(s);
 		boolean matched = m.matches();
 		if (matched) {
-			Integer yr = new Integer(m.group("yr"));
-			Integer mo = new Integer(m.group("mo"));
-			Integer da = new Integer(m.group("da"));
+			Integer yr = Integer.valueOf(m.group("yr"));
+			Integer mo = Integer.valueOf(m.group("mo"));
+			Integer da = Integer.valueOf(m.group("da"));
 			// This only accepts 2 or 4-digit years, and just checks that month and day
 			// numbers are in range, but does not exclude, e.g., 4/31 or deal with leap years.
 			if (((yr >= 0 && yr <= 99) || yr >=1900) &&
@@ -803,9 +859,9 @@ public class Csv2Mysql {
 	static boolean isDateTime(String s) {
 		Matcher m = dateTimePat.matcher(s);
 		if (m.matches()) {
-			Integer yr = new Integer(m.group("yr"));
-			Integer mo = new Integer(m.group("mo"));
-			Integer da = new Integer(m.group("da"));
+			Integer yr = Integer.valueOf(m.group("yr"));
+			Integer mo = Integer.valueOf(m.group("mo"));
+			Integer da = Integer.valueOf(m.group("da"));
 			// This only accepts 2 or 4-digit years, and just checks that month and day
 			// numbers are in range, but does not exclude, e.g., 4/31 or deal with leap years.
 			if (((yr >= 0 && yr <= 99) || yr >=1900) &&
@@ -840,7 +896,7 @@ public class Csv2Mysql {
 	 * @return true if the month and day form a valid date
 	 */
 	static boolean okOracleMonthDay(String month, String day) {
-		Integer da = new Integer(day);
+		Integer da = Integer.valueOf(day);
 		for (int i = 0; i < monthNames.length; i++) 
 			if (month.equalsIgnoreCase(monthNames[i]) && da <= monthLengths[i])
 				return true;
@@ -873,7 +929,7 @@ public class Csv2Mysql {
 	static boolean areUniqueDoubles(HashSet<String> set) {
 		HashSet<Double> doubles = new HashSet<Double>();
 		for (String s: set) {
-			Double d = new Double(s);
+			Double d = Double.valueOf(s);
 			if (doubles.contains(d)) 
 				return false;
 			doubles.add(d);
@@ -882,7 +938,8 @@ public class Csv2Mysql {
 	}
 	
 	static final String[] textTypes = {"VARCHAR(255)", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"};
-	// Which of the following limits apply depends on whether we use UTF8 or LATIN1 encoding:
+	// Which of the following limits apply depends on whether we use UTF8 or UTF8MB4 or LATIN1 encoding:
+	static final long[] textMaxU4 = {63, 63, 16383, 4194303, 1073741823};
 	static final long[] textMaxU = {84, 84, 21845, 5592405, 1431655765};
 	static final long[] textMax = {255, 255, 65535, 16777215, 4294967295L};
 	// Although the actual maximum length of a text index is 767, we limit ourselves to
@@ -898,9 +955,10 @@ public class Csv2Mysql {
 	 * @param utf whether the representation will be UTF8
 	 * @return the smallest text type that is large enough
 	 */
-	static String whichText(long len, boolean utf) {
+	static String whichText(long len, String utf) {
 		long[] limits = textMax;
-		if (utf) limits = textMaxU;
+		if (utf.equals("UTF8MB4")) limits = textMaxU4;
+		else if (utf.equals("UTF8")) limits = textMaxU;
 		for (int i = 0; i < limits.length; i++) {
 			if (len <= limits[i]) return textTypes[i];
 		}
