@@ -29,7 +29,7 @@ be unzipped in any case.
 
 This program is currently used with MySQL Server Community
 Edition 8.0.19, though it should work with earlier versions as well.
-The updated version fixes a few bugs, allows gzip's
+The updated version fixes a few bugs, allows gzip'd
 inputs, adds the ability to call a `UTF8` file `UTF8MB4`, which is due
 to become the standard meaning of `UTF8` in MySQL, though currently it
 means `UTF8MB3`.
