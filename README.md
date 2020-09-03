@@ -177,8 +177,7 @@ quotes but need not be, unless they contain characters (such as
 quotation marks) that can confuse the reader.  MySQL supports various
 lengths of character fields.  We use the following:  
 
-| MySQL Type | Maximum Length | Maximum Length if UTF8 | Maximum
-| Length if UTF8MB4 |
+| MySQL Type | Maximum Length | Maximum Length if UTF8 | Maximum Length if UTF8MB4 |
 | --- | ---:| ---:| ---:|
 | `VARCHAR(255)` | `255` | `84` | `63` |
 | `TINYTEXT` (*not used* because it is equivalent to `VARCHAR(255)`)  | `255` | `84` | `63` |
